@@ -21,7 +21,7 @@ def train_test(data, best_trained_model, forecast_horizon, instance_testing_size
 	if save_predictions == True:
 		predictions_df = pd.DataFrame()
 		predictions_df['True Values'] = testing_data.values.tolist()
-		predictions_df['Predicted Values'] = training_predictions
+		predictions_df['Predicted Values'] = testing_prediction
 
 		predictions_df.to_csv('train_test_predictions.csv', index=False)
 
