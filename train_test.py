@@ -2,6 +2,9 @@ from performance import performance
 from select_features import select_features
 import pandas as pd
 
+from split_data import split_data
+from train_evaluate import train_evaluate
+
 def train_test(data, best_trained_model, forecast_horizon, instance_testing_size, best_history_length, ordered_covariates_or_features, 
 	best_model='knn', best_feature_set_indices=[1, 2, 3], performance_measures=['MAPE'], performance_report=True, save_predictions=True, 
 	verbose=0):
