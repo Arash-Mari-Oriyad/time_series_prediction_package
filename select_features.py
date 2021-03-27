@@ -31,5 +31,7 @@ def select_features(data, ordered_covariates_or_features, feature_set_indices):
 			output_data = pd.concat([output_data, tmp_df], axis=1, ignore_index=True)	# concat two dataframes
 			output_data.columns = output_data_col_names + tmp_df.columns.tolist()
 			print(output_data.columns)
+	
+	output_data = pd.concat([data[['spatial id', 'temporal id', 'Target']], output_data], axis=1, ignore_index=True)
 
 	return output_data
