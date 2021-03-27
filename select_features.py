@@ -27,11 +27,9 @@ def select_features(data, ordered_covariates_or_features, feature_set_indices):
 		for covariate_name in covariates_to_be_selected:
 			# makes a dataframe (tmp_df) that contains columns containing substring <covariate_name>
 			tmp_df = data.filter(regex=covariate_name)
-			output_data_col_names = output_data.columns.tolist()
-			output_data = pd.concat([output_data, tmp_df], axis=1, ignore_index=True)	# concat two dataframes
-			output_data.columns = output_data_col_names + tmp_df.columns.tolist()
+			output_data = pd.concat([output_data, tmp_df], axis=1)	# concat two dataframes
 			print(output_data.columns)
 	
-	output_data = pd.concat([data[['spatial id', 'temporal id', 'Target']], output_data], axis=1, ignore_index=True)
+	output_data = pd.concat([data[['spatial id', 'temporal id', 'Target']], output_data], axis=1)
 
 	return output_data
