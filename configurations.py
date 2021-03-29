@@ -1,0 +1,4 @@
+NOT_NUMERICAL_COLUMNS_NAMES = ['spatial id', 'temporal id']
+TARGET_COLUMN_NAME = 'Target'
+
+RANKING_METHODS = ['mRMR', 'CORRELATION']
