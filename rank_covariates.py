@@ -1,11 +1,12 @@
 import sys
 
 import pandas as pd
+from typing import List
 
 import configurations
 
 
-def rank_covariates(data, ranking_method, forced_covariates):
+def rank_covariates(data, ranking_method: str, forced_covariates: List[str]):
     if isinstance(data, str):
         data = pd.read_csv(data)
     elif isinstance(data, pd.DataFrame):
