@@ -1,3 +1,7 @@
+import pandas as pd 
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+
 def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_scaler = 'logarithmic'):
     
     '''
@@ -62,18 +66,16 @@ def target_descale(scaled_data, base_data, scaler = 'logarithmic'):
     '''
     scaled_data : List of target variable predicted values in test set (scaled)
     base_data : List of target variable values in train set before scaling
-    scaler = 'logarithmic' or 'normalize' or 'standardize'
+    scaler = 'logarithmic' or 'normalize' or 'standardize' or None
     '''
     
-    base_data = np.array(base_data).reshape(-1, 1).astype(float)
-    scaled_data = np.array(scaled_data).reshape(-1, 1).astype(float)
+    base_data = np.array(base_data).reshape(-1, 1)
+    scaled_data = np.array(scaled_data).reshape(-1, 1)
     
     if scaler == 'logarithmic':
         output_data = np.exp(scaled_data) - 1
         
-    elif scaler == 'standardize': 
-        pd.DataFrame(data=base_data).to_csv('scale_raw_data.csv')
-        pd.DataFrame(data=scaled_data).to_csv('scale_scaled_data.csv')
+    elif scaler == 'standardize':        
         scaleObject = StandardScaler()
         scaleObject.fit_transform(base_data)
         output_data = scaleObject.inverse_transform(scaled_data)
@@ -82,9 +84,7 @@ def target_descale(scaled_data, base_data, scaler = 'logarithmic'):
         scaleObject = MinMaxScaler()
         scaleObject.fit_transform(base_data)
         output_data = scaleObject.inverse_transform(scaled_data)
-    
     else:
         output_data = scaled_data
     
     return list(output_data.ravel())
-    

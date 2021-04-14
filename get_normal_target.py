@@ -1,17 +1,20 @@
+import pandas as pd 
+import numpy as np
+
 def get_normal_target(training_target, test_target, training_prediction, test_prediction, target_mode, target_granularity = None):
     
     '''
-    training_target : a data frame including columns 'spatial id', 'temporal id', 'Target', 'normal target'
+    training_target : a data frame including columns 'spatial id', 'temporal id', 'Target', 'Normal target'
                         from the training set
                         
-    test_target : a data frame including columns 'spatial id', 'temporal id', 'Target', 'normal target'
+    test_target : a data frame including columns 'spatial id', 'temporal id', 'Target', 'Normal target'
                         from the test set
                         
     training_prediction : list of predicted values for the training set
     
     test_prediction : list of predicted values for the test set
     
-    target_mode = 'normal' , 'cumulative' , 'moving average', 'differential' the mod of the target variable
+    target_mode = 'normal' , 'cumulative' , 'moving average', 'differential' the mode of the target variable
     
     target_granularity : number of smaller temporal units which is averaged to get the moving average target
     
@@ -53,7 +56,7 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
         
         # practical accessible values (target real values in training set and predicted values in test set) will be used 
         # for returning the moving average target (predicted) to original state
-        data.loc[:,('train_real_test_prediction')] = list(training_target['normal target']) + list(test_prediction)
+        data.loc[:,('train_real_test_prediction')] = list(training_target['Normal target']) + list(test_prediction)
         data.loc[:,('prediction')] = list(training_prediction) + list(test_prediction)
 
         data = data.sort_values(by=['temporal id', 'spatial id'])
@@ -83,7 +86,7 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
         
         # practical accessible values (target real values in training set and predicted values in test set) will be used 
         # for returning the differential target (predicted) to original state
-        data.loc[:,('train_real_test_prediction')] = list(training_target['normal target']) + list(test_prediction)
+        data.loc[:,('train_real_test_prediction')] = list(training_target['Normal target']) + list(test_prediction)
         data.loc[:,('prediction')] = list(training_prediction) + list(test_prediction)
 
         data = data.sort_values(by=['temporal id', 'spatial id'])
@@ -104,9 +107,6 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
     data = data.sort_values(by=['temporal id', 'spatial id'])
     training_set = data[data['type'] == 1]
     test_set = data[data['type'] == 2]
-    # cause of warning:
-    training_set.loc[:,('Target')] = training_set['normal target']
-    test_set.loc[:,('Target')] = test_set['normal target']
 
     training_prediction = list(training_set['prediction'])
     test_prediction = list(test_set['prediction'])

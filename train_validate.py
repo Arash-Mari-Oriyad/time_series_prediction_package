@@ -2,56 +2,135 @@ import pandas as pd
 import numpy as np
 import sys
 import datetime
-from models import KNN,NN,GLM,GBM
+from models import KNN_REGRESSOR,KNN_CLASSIFIER,NN_REGRESSOR,NN_CLASSIFIER,GLM_REGRESSOR,GLM_CLASSIFIER,GBM_REGRESSOR,GBM_CLASSIFIER
 from sklearn.model_selection import KFold
 from multiprocessing import Pool
 from functools import partial
+from tqdm import tqdm
+import random
+import os
+import matplotlib.pyplot as plt
+import datetime
 
-from split_data import split_data
-from performance import performance
-from train_evaluate import train_evaluate
-from select_features import select_features
+
+
+def report_performance(errors_dict, max_history, ordered_covariates_or_features,
+                      feature_sets_indices, column_identifier, performance_measure, models_name_list, report_type):
+    
+    output_data_frame = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + performance_measure)
+    feature_sets = {feature_set_number:[] for feature_set_number in range(len(feature_sets_indices))}
+    
+    for feature_set_number in range(len(feature_sets_indices)):
+        
+        # get the name of features in a current selected feature set which are in
+        # a format 'temporal covariate x' or 'spatial covariate x'
+        for index in feature_sets_indices[feature_set_number]:
+            
+            feature_formated_name = ordered_covariates_or_features[index]
+            # futuristic covariates are basicaly temporal covariates
+            if feature_formated_name.startswith("futuristic covariate"):
+                    feature_formated_name = feature_formated_name.replace("futuristic" , "temporal")
+            
+            # if column_identifier is None, the name of columns have not changed
+            if column_identifier is None:
+                feature_original_name = feature_formated_name
+            
+            # if column_identifier is specified, the name of columns have changed and must be returned to original names
+            elif column_identifier is not None:
+                if feature_formated_name.startswith("spatial covariate"):
+                    covar_number = int(feature_formated_name.split("spatial covariate ")[1])
+                    feature_original_name = column_identifier["spatial covariates"][covar_number]
+                    
+                elif feature_formated_name.startswith("temporal covariate"):
+                    covar_number = int(feature_formated_name.split("temporal covariate ")[1].split(' ')[0])
+                    feature_original_name = column_identifier["temporal covariates"][covar_number]
+                    
+                    # if the item is feature with temporal suffix (t - x)
+                    if len(feature_formated_name.split("temporal covariate ")[1].split(' '))>1:
+                        temporal_suffix = feature_formated_name.split("temporal covariate ")[1].split(' ')[1]
+                        feature_original_name = feature_original_name + " " + temporal_suffix
+            
+            feature_sets[feature_set_number].append(feature_original_name)
+
+    for model_name in models_name_list:
+        for history in range(1, max_history+1):
+
+            temp = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + list(performance_measure))
+            temp.loc[:,('feature or covariate set')] = list([feature_sets[feature_set_number] for feature_set_number in range(len(feature_sets_indices))])
+            temp.loc[:,('model name')] = model_name
+            temp.loc[:,('history length')] = history
+            
+            for measure in performance_measure:
+                errors_list = []
+                for feature_set_number in range(len(feature_sets_indices)):
+                    errors_list.append(errors_dict[measure][model_name][(history, feature_set_number)])
+                temp.loc[:,(measure)] = list(errors_list)
+            
+            output_data_frame = output_data_frame.append(temp)
+    
+    address = './performance/validation process/'
+    if not os.path.exists(address):
+                os.makedirs(address)
+    output_data_frame.to_csv(address + report_type + ' performance report.csv', index = False)
+    
+#############################################################
+
+def parallel_run(prediction_arguments):
+    train_predictions, validation_predictions, trained_model = train_evaluate(training_data = prediction_arguments[0],
+                                                                              validation_data = prediction_arguments[1],
+                                                                              model = prediction_arguments[2], 
+                                                                              model_type = prediction_arguments[3],
+                                                                              model_parameters = prediction_arguments[4], 
+                                                                              verbose = prediction_arguments[5])
+    return train_predictions, validation_predictions
+
+    
+
 
 def save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
-                           fold_training_predictions, models_best_history_length, models_best_feature_set_number,
-                           prediction_type):
-
+                               fold_training_predictions, models_best_history_length, models_best_feature_set_number,
+                               prediction_type):
+    
+    prediction_data_frame = pd.DataFrame(columns = ['model', 'spatial id', 'temporal id','real value', 'predicted value'])
+    fold_number = 1
+    
     for model_number, model_name in enumerate(models_name_list):
 
-        best_hist_length = models_best_history_length[model_name]
-        best_feat_set_number = models_best_feature_set_number[model_name]
+        model_best_history_length = models_best_history_length[model_name]
+        model_best_feature_set_number = models_best_feature_set_number[model_name]
 
-        prediction_data_frame = pd.DataFrame(columns = ['fold', 'spatial id', 'temporal id','real value', 'predicted value'])
+        if prediction_type == 'validation':
+            temp = target_real_values[model_best_history_length][fold_number]['validation']
+            temp.loc[:,('predicted value')] = fold_validation_predictions[model_name][(fold_number, model_best_history_length, model_best_feature_set_number)]
+        else:
+            temp = target_real_values[model_best_history_length][fold_number]['training']
+            temp.loc[:,('predicted value')] = fold_training_predictions[model_name][(fold_number, model_best_history_length, model_best_feature_set_number)]
+        
+        temp.loc[:,('model')] = model_name
+        temp = temp.drop(['Target'], axis = 1)
+        temp.rename(columns = {'Normal target':'real value'}, inplace = True)
+        temp = temp[['model', 'spatial id', 'temporal id','real value', 'predicted value']]
 
+        prediction_data_frame = prediction_data_frame.append(temp)
+    
+    address = './predictions/validation process/'
+    if not os.path.exists(address):
+                os.makedirs(address)
+    prediction_data_frame.to_csv(address + prediction_type + '_prediction.csv', index = False)
+    
 
-        for fold_number in range(1, fold_total_number + 1):
-            if prediction_type == 'validation':
-                temp = target_real_values[best_hist_length][fold_number]['validation']
-                temp['predicted value'] = fold_validation_predictions[model_name][(fold_number, best_hist_length, best_feat_set_number)]
-            else:
-                temp = target_real_values[best_hist_length][fold_number]['training']
-                temp['predicted value'] = fold_training_predictions[model_name][(fold_number, best_hist_length, best_feat_set_number)]
-
-            temp['fold'] = fold_number
-            temp.rename(columns = {'Target':'real value'}, inplace = True)
-            temp = temp[['fold', 'spatial id', 'temporal id','real value', 'predicted value']]
-
-            prediction_data_frame = prediction_data_frame.append(temp)
-
-        if fold_total_number == 1:
-            prediction_data_frame.drop(['fold'], axis = 1, inplace = True)
-
-        prediction_data_frame.to_csv(prediction_type + '_prediction '+model_name+'.csv', index = False)
+###########################################################################################
     
     
-def train_validate(data, max_history_length, forecast_horizon, ordered_covariates_or_features, feature_sets_indices,
-                   models, splitting_type, instance_validation_size, instance_testing_size, instance_random_partitioning,
-                   fold_total_number, performance_measure, benchmark,
-                   performance_report, save_predictions, verbose):
+def train_validate(data, ordered_covariates_or_features, feature_sets_indices, instance_validation_size,
+                   instance_testing_size, fold_total_number, instance_random_partitioning = False, max_history_length = 1,
+                   forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
+                   performance_measure = ['MAPE'], benchmark = 'MAPE', input_scaler = None, output_scaler = None,
+                   performance_report = True, target_mode = 'normal', target_granularity = 1, column_identifier = None, save_predictions = True, verbose = 1):
     
     
     supported_models_name = ['nn', 'knn', 'glm', 'gbm']
-    supported_performance_measures = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2']
+    supported_performance_measures = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']
     models_list = [] # list of models (str or callable)
     models_parameter_list = [] # list of models' parameters (dict or None)
     models_name_list = [] # list of models' names (str)
@@ -63,23 +142,25 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
     
     data_list = []
     if type(data) == list:
-        for history in range(len(data)):
-            if type(data[history]) == pd.DataFrame:
-                data_list.append(data[history])
-            elif type(data[history]) == str:
+        for history in range(1,len(data)+1):
+            if type(data[history-1]) == pd.DataFrame:
+                data_list.append(data[history-1])
+            elif type(data[history-1]) == str:
                 try:
-                    data_list.append(pd.read_csv(data[history]))
+                    data_list.append(pd.read_csv(data[history-1]))
                 except FileNotFoundError:
-                    sys.exit("The address '{0}' is not valid.".format(data[history]))
+                    sys.exit("The address '{0}' is not valid.".format(data[history-1]))
             else:
                 sys.exit("The input data must be a list of DataFrames or strings of data addresses.")
     else:
         sys.exit("The input data must be a list of DataFrames or strings of data addresses.")
         
+    max_history = len(data_list)
+        
     ############## models input
     
     if type(models) != list:
-        sys.exit("Warning: The models must be of type list.")
+        sys.exit("The models must be of type list.")
         
     # keep the number of user defined models to distinguish them
     callable_model_number = 1
@@ -101,9 +182,9 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
                         models_parameter_list.append(item[model_name])
                     else:
                         models_parameter_list.append(None)
-                        print("Warning: The values in the dictionary items of models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.")
+                        print("\nWarning: The values in the dictionary items of models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.\n")
             else:
-                print("Warning: Each dictionary item in models list must contain only one item with a name of one of the supported models as a key and the parameters of that model as value. The incompatible cases will be ignored.")
+                print("\nWarning: Each dictionary item in models list must contain only one item with a name of one of the supported models as a key and the parameters of that model as value. The incompatible cases will be ignored.\n")
         
         # if the item is only name of model whithout parameters
         elif type(item) == str:
@@ -113,7 +194,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
                     models_name_list.append(item)
                     models_parameter_list.append(None)
             else:
-                print("Warning: The string items in the models list must be one of the supported models names. The incompatible cases will be ignored.")
+                print("\nWarning: The string items in the models list must be one of the supported models names. The incompatible cases will be ignored.\n")
         
         # if the item is user defined function
         elif callable(item):
@@ -123,7 +204,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
             callable_model_number += 1
             
         else:
-            print("Warning: The items in the models list must be of type string, dict or callable. The incompatible cases will be ignored.")
+            print("\nWarning: The items in the models list must be of type string, dict or callable. The incompatible cases will be ignored.\n")
     
     if len(models_list) < 1:
         sys.exit("There is no item in the models list or the items are invalid.")
@@ -135,7 +216,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
         
     unsupported_measures = list(set(performance_measure)-set(supported_performance_measures))
     if len(unsupported_measures) > 0:
-        print("Warning: Some of the specified measures are not valid:\n{0}\nThe supported measures are: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2']".format(unsupported_measures))
+        print("\nWarning: Some of the specified measures are not valid:\n{0}\nThe supported measures are: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']\n".format(unsupported_measures))
     
     performance_measure = list(set([measure for measure in supported_performance_measures if measure in performance_measure]))
     
@@ -145,7 +226,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
     ############## benchmark input
     
     if benchmark not in supported_performance_measures:
-        print("Warning: The specified benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2']\nThe incompatible cases will be ignored and replaced with 'MAPE'.")
+        print("\nWarning: The specified benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']\nThe incompatible cases will be ignored and replaced with 'MAPE'.\n")
         benchmark = 'MAPE'
     # set the appropriate min error based on benchmark measure
     if benchmark in ['MAE', 'MAPE', 'MASE', 'MSE']:
@@ -156,11 +237,11 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
         models_min_validation_error = {model_name : float('-Inf') for model_name in models_name_list}
     
     # checking validity of benchmark
-    for history in range(0,len(data_list)):
-        data = data_list[history].copy()
+    for history in range(1,max_history+1):
+        data = data_list[history-1].copy()
         if (len(data[data['Target']==0]) > 0) and (benchmark == 'MAPE'):
                 benchmark = 'MAE'
-                print("Warning : The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.")
+                print("\nWarning : The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
         
         
     ############## splitting_type, fold_total_number, instance_testing_size, and instance_validation_size inputs
@@ -218,7 +299,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
     # trained_model = {model_name : {} for model_name in models_name_list} # trained model
     
     # training and validation target real values for different history lengths and fold number
-    target_real_values = {history:{fold_number : {'training':None,'validation':None} for fold_number in range(1, fold_total_number + 1)} for history in range(0,len(data_list))}
+    target_real_values = {history:{fold_number : {'training':None,'validation':None} for fold_number in range(1, fold_total_number + 1)} for history in range(1,max_history+1)}
     
     # train_data for each history and feature set index (will be used to train best model using train data with the best history length and feature set)
     train_data_dict = {} 
@@ -231,10 +312,12 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
     #################################################### main part
     # (loop over history_length, feature_sets_indices, and folds)
     
-    for history in range(0,len(data_list)):
+    for history in range(1,max_history+1):
+        
+        print("\n"+"-"*55+"\nValidation process is running for history length = {0}.\n".format(history)+"-"*55+"\n")
         
         # get the data with specific history length
-        data = data_list[history].copy()
+        data = data_list[history-1].copy()
         
         # separating the test part
         if splitting_type == 'training-validation-testing' :
@@ -249,7 +332,7 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
         pool_list = [] # list of all the different combination of the arguments of pool function
         
         for feature_set_number in range(len(feature_sets_indices)):
-            
+
             # select the features
             train_data = select_features(data = raw_train_data.copy(), ordered_covariates_or_features = ordered_covariates_or_features,
                                         feature_set_indices = feature_sets_indices[feature_set_number])
@@ -272,15 +355,26 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
                     
                     # saving the target real values of each fold for data with different history lengths to use in
                     # calculation of performance and saving real and predicted target values in csv files
-                    target_real_values[history][fold_number]['training'] = training_data[['spatial id', 'temporal id', 'Target']]#list(np.array(training_data['Target']).reshape(-1))
-                    target_real_values[history][fold_number]['validation'] = validation_data[['spatial id', 'temporal id', 'Target']]#list(np.array(validation_data['Target']).reshape(-1))
+                    needed_columns = ['spatial id', 'temporal id', 'Target']
+                    if 'Normal target' in training_data.columns:
+                        needed_columns = needed_columns + ['Normal target']
+                    
+                    target_real_values[history][fold_number]['training'] = training_data[needed_columns]
+                    target_real_values[history][fold_number]['validation'] = validation_data[needed_columns]
+                    
+                    # scaling features and target based on input_scaler and output_scaler
+                    training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, input_scaler = input_scaler, output_scaler = output_scaler)
                     
                     # add the current fold data, model name and model parameters to the list of pool function arguments
-                    pool_list.append(tuple((training_data, validation_data, model, model_parameters, 0)))
+                    pool_list.append(tuple((training_data, validation_data, model, model_type, model_parameters, 0)))
                     
+                    if len(training_data) > len(training_data.dropna()):
+                        training_data.to_csv('train_null.csv')
+                    if len(validation_data) > len(validation_data.dropna()):
+                        validation_data.to_csv('train_null.csv')
                     
-        # running the processes in parallel
-        parallel_output = prediction_pool.map(partial(parallel_run),list(pool_list))
+        # running the models in parallel
+        parallel_output = prediction_pool.map(partial(parallel_run),tqdm(list(pool_list)))
         prediction_pool.close()
         prediction_pool.join()
         
@@ -293,26 +387,50 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
             for model_number, model in enumerate(models_list):
                 
                 model_name = models_name_list[model_number]
-                # initializing a dictionary for hold each folds training and validation error for this iteration model
+                # initializing a dictionary for hold each folds training and validation error for the current model
                 fold_validation_error = {fold_number : {measure: None for measure in supported_performance_measures} for fold_number in range(1, fold_total_number + 1)}
                 fold_training_error = {fold_number : {measure: None for measure in supported_performance_measures} for fold_number in range(1, fold_total_number + 1)}
                 
                 for fold_number in range(1, fold_total_number + 1):
                     
-                    
-                    # save models prediction output for the current fold in the dictionary of predicted values
+                    # save the predefined models prediction output for the current fold
                     fold_training_predictions[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][0]
                     fold_validation_predictions[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][1]
-                    # trained_model[model_name][(fold_number, history, feature_set_number)] = parallel_outputs[pool_index][2]
+                    # trained_model[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][2]
+                    
+                    # descale the predictions
+                    fold_training_predictions[model_name][(fold_number, history, feature_set_number)] = target_descale(
+                                                                                                        scaled_data = fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
+                                                                                                        base_data = list(np.array(target_real_values[history][fold_number]['training']['Target']).reshape(-1)), 
+                                                                                                        scaler = output_scaler)
+                    fold_validation_predictions[model_name][(fold_number, history, feature_set_number)] = target_descale(
+                                                                                                        scaled_data = fold_validation_predictions[model_name][(fold_number, history, feature_set_number)], 
+                                                                                                        base_data = list(np.array(target_real_values[history][fold_number]['training']['Target']).reshape(-1)), 
+                                                                                                        scaler = output_scaler)
+                   
+                    # get the normal values of the target variable and predictions for the cumulative, differential,
+                    # and moving average modes
+                    
+                    target_real_values[history][fold_number]['training'], target_real_values[history][fold_number]['validation'],\
+                    fold_training_predictions[model_name][(fold_number, history, feature_set_number)],\
+                    fold_validation_predictions[model_name][(fold_number, history, feature_set_number)] = \
+                                            get_normal_target(training_target = target_real_values[history][fold_number]['training'],
+                                                               test_target = target_real_values[history][fold_number]['validation'],
+                                                               training_prediction = fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
+                                                               test_prediction = fold_validation_predictions[model_name][(fold_number, history, feature_set_number)],
+                                                               target_mode = target_mode, target_granularity = target_granularity)
+                    
+                    
                     
                     pool_index = pool_index + 1
-                    
+
+                        
                     # calculate and store the performance measure for the current fold
                     for measure in performance_measure:
-                        fold_validation_error[fold_number][measure] = performance(list(np.array(target_real_values[history][fold_number]['validation']['Target']).reshape(-1)), 
+                        fold_validation_error[fold_number][measure] = performance(list(np.array(target_real_values[history][fold_number]['validation']['Normal target']).reshape(-1)), 
                                                                                  fold_validation_predictions[model_name][(fold_number, history, feature_set_number)],
                                                                                  list([measure]))
-                        fold_training_error[fold_number][measure] = performance(list(np.array(target_real_values[history][fold_number]['training']['Target']).reshape(-1)), 
+                        fold_training_error[fold_number][measure] = performance(list(np.array(target_real_values[history][fold_number]['training']['Normal target']).reshape(-1)), 
                                                                                  fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
                                                                                  list([measure]))
             
@@ -338,18 +456,29 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
                                 models_best_feature_set_number[model_name] = feature_set_number
                                 # models_best_trained_model[model_name] = trained_model[model_name][(1, history, feature_set_number)]
     
+    
     #################################################### saving predictions
     
     # save the real and predicted value of target variable in training and validation set for each model
     
-    if save_predictions == True:
+    if (save_predictions == True) and (fold_total_number == 1): # if cross validation mode is on, predictions are not saved
         
         save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
                                    'training')
         save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
-                                   'validation')       
+                                   'validation')
+        
+    #################################################### reporting performance
+    
+    if performance_report == True:
+        
+        report_performance(errors_dict = validation_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
+                          feature_sets_indices = feature_sets_indices, column_identifier = column_identifier, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'validation')
+        report_performance(errors_dict = training_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
+                          feature_sets_indices = feature_sets_indices, column_identifier = column_identifier, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'training')
+        
     
     
     #################################################### finding best model and overall best history length and feature set
@@ -378,11 +507,12 @@ def train_validate(data, max_history_length, forecast_horizon, ordered_covariate
     
     best_model_parameters = models_parameter_list[best_model_number]
     
+    best_train_data, _ = data_scaling(train_data = best_train_data, test_data = best_train_data, input_scaler = input_scaler, output_scaler = output_scaler)
+    
     _, _, best_trained_model = train_evaluate(training_data = best_train_data,
                                               validation_data = best_train_data,
-                                              model = best_model, model_parameters = best_model_parameters,
+                                              model = best_model, model_type = model_type,
+                                              model_parameters = best_model_parameters,
                                               verbose = 0)
                 
     return best_model, best_history_length, best_feature_sets_indices, best_trained_model
-
-
