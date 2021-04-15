@@ -7,7 +7,9 @@ from typing import List
 import configurations
 
 
-def rank_covariates(data, ranking_method: str, forced_covariates: List[str]):
+def rank_covariates(data,
+                    ranking_method: str,
+                    forced_covariates: list):
     if isinstance(data, str):
         data = pd.read_csv(data)
     elif isinstance(data, pd.DataFrame):
@@ -15,8 +17,10 @@ def rank_covariates(data, ranking_method: str, forced_covariates: List[str]):
     else:
         sys.exit("The data input format is not valid.")
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
-    possible_forced_features = [forced_covariate + ' t' if i == 0 else forced_covariate + ' t-' + str(i)
-                                for forced_covariate in forced_covariates for i in range(1000)]
+    data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
+    possible_forced_features = [forced_covariate + ' t' if i == 0
+                                else (forced_covariate + ' t+' + str(i) if i > 0 else forced_covariate + ' t' + str(i))
+                                for forced_covariate in forced_covariates for i in range(-1000, 1000)]
     forced_features = list(set(possible_forced_features) & set(data.columns.values))
     data.drop(forced_features, axis=1, inplace=True)
     cor = data.corr().abs()
@@ -38,20 +42,20 @@ def rank_covariates(data, ranking_method: str, forced_covariates: List[str]):
         overall_rank.remove(temp.index[0])
 
     # next 6 lines arranges columns in order of correlations with target or by mRMR rank
-    if (ranking_method == 'mRMR'):
+    if ranking_method == 'mRMR':
         final_rank.remove(configurations.TARGET_COLUMN_NAME)
         ix = final_rank
     else:
-        ix = data.corr().abs().sort_values('target', ascending=False).index.drop([configurations.TARGET_COLUMN_NAME])
-    ranked_features = forced_features
+        ix = data.corr().abs().sort_values(configurations.TARGET_COLUMN_NAME, ascending=False).index.drop([configurations.TARGET_COLUMN_NAME])
+    ranked_features = forced_covariates
     ranked_features.extend(ix)
     return ranked_features
 
 
 if __name__ == '__main__':
-    data_address = 'historical_data h=3.csv'
-    ranking_method = 'mRMR'
-    forced_covariates = ['futuristic covariate 0']
-    ranked_features = rank_covariates(data_address, ranking_method, forced_covariates)
-    print(len(ranked_features))
-    print(ranked_features)
+    ranked_features = rank_covariates(data='historical_data h=2.csv',
+                                      ranking_method='mRMR',
+                                      forced_covariates=[])
+
+    # print(len(ranked_features))
+    # print(ranked_features)
