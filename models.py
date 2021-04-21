@@ -103,10 +103,9 @@ def KNN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
         GridSearchOnKs.fit(X_train, y_train)
         best_K = GridSearchOnKs.best_params_
         
-        print("Warning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
-        print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]")
-    
         if verbose == 1:
+            print("Warning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
+            print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]")
             print('best k:', best_K['n_neighbors'])
             
         K = best_K['n_neighbors']
@@ -125,7 +124,7 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
     # default parameters
     parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None], 'output_activation':'exponential', 'loss':'mean_squared_error',
                   'optimizer':'RMSprop', 'metrics':['mean_squared_error'],
-                  'EarlyStopping_monitor':'val_loss', 'EarlyStopping_patience':30, 'batch_size':128,
+                  'early_stopping_monitor':'val_loss', 'early_stopping_patience':30, 'batch_size':128,
                   'validation_split':0.2,'epochs':100}
     
     if user_params is not None:
@@ -147,7 +146,7 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
         optimizer=parameters['optimizer'],
         metrics=parameters['metrics'])
 
-    early_stop = EarlyStopping(monitor=parameters['EarlyStopping_monitor'], patience=parameters['EarlyStopping_patience'])
+    early_stop = EarlyStopping(monitor=parameters['early_stopping_monitor'], patience=parameters['early_stopping_patience'])
 
     NeuralNetworkObject.fit(X_train, y_train.ravel(),
                    callbacks=[early_stop],
@@ -177,7 +176,7 @@ def GBM_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
                 
     GradientBoostingclassifierObject = GradientBoostingClassifier(**parameters)
 
-    GradientBoostingclassifierObject.fit(X_train, y_train)
+    GradientBoostingclassifierObject.fit(X_train, y_train.ravel())
     y_prediction = GradientBoostingclassifierObject.predict(X_test)
     y_prediction_train = GradientBoostingclassifierObject.predict(X_train)
 
@@ -199,7 +198,7 @@ def GLM_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
                 parameters[key] = user_params[key]
     
     GLM_Model = LogisticRegression(**parameters)
-    GLM_Model.fit(X_train, y_train)
+    GLM_Model.fit(X_train, y_train.ravel())
     y_prediction = GLM_Model.predict(X_test)
     y_prediction_train = GLM_Model.predict(X_train)
     
@@ -209,7 +208,7 @@ def GLM_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
 ######################################################### KNN: K-Nearest Neighbors Classifier
 def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
-    parameters = {'n_neighbors':5, 'weights':'uniform', 'algorithm':'auto', 'leaf_size':30, 'p':2,
+    parameters = {'weights':'uniform', 'algorithm':'auto', 'leaf_size':30, 'p':2,
                   'metric':'minkowski', 'metric_params':None, 'n_jobs':None}
     
     if user_params is not None:
@@ -230,16 +229,16 @@ def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
         GridSearchOnKs.fit(X_train, y_train)
         best_K = GridSearchOnKs.best_params_
         
-        print("Warning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
-        print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]")
-    
+        
         if verbose == 1:
+            print("Warning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
+            print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]")
             print('best k:', best_K['n_neighbors'])
             
         K = best_K['n_neighbors']
         
     KNN_Model = KNeighborsClassifier(n_neighbors=K, **parameters)
-    KNN_Model.fit(X_train, y_train)
+    KNN_Model.fit(X_train, y_train.ravel())
     y_prediction = KNN_Model.predict(X_test)
     y_prediction_train = KNN_Model.predict(X_train)
 
@@ -254,7 +253,7 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None],
                   'output_activation':'softmax', 'loss':'categorical_crossentropy',
                   'optimizer':'adam', 'metrics':['accuracy'],
-                  'EarlyStopping_monitor':'val_loss', 'EarlyStopping_patience':30, 'batch_size':128,
+                  'early_stopping_monitor':'val_loss', 'early_stopping_patience':30, 'batch_size':128,
                   'validation_split':0.2,'epochs':100}
     
     if user_params is not None:
@@ -265,7 +264,6 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     encoder = LabelEncoder().fit(y_train)
     encoded_y_train = encoder.transform(y_train)
     number_of_classes = len(encoder.classes_)
-    print('le.classes_',number_of_classes)
     
     # convert integers to dummy variables (i.e. one hot encoded)
     dummy_y_train = np_utils.to_categorical(encoded_y_train)
@@ -273,48 +271,44 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
     output_neurons = number_of_classes
     
-    if (parameters['output_activation'] == 'sigmoid') and (number_of_classes == 2):
+    y_to_fit = dummy_y_train
+    
+    if parameters['output_activation'] == 'sigmoid':
         output_neurons = 1
-        model_y_train = encoded_y_train
-    else:
-        model_y_train = dummy_y_train
-
+        y_to_fit = encoded_y_train.ravel()
     
-    def create_model():
-        NeuralNetworkObject = keras.Sequential()
-        NeuralNetworkObject.add(tf.keras.Input(shape=(X_train.shape[1],)))
-        for layer,neurons in enumerate(parameters['headen_layers_neurons']):
-            NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
-        NeuralNetworkObject.add(tf.keras.layers.Dense(output_neurons, activation=parameters['output_activation']))
-
-        # Compile the model
-        NeuralNetworkObject.compile(
-            loss=parameters['loss'],
-            optimizer=parameters['optimizer'],
-            metrics=parameters['metrics'])
-        
-        return NeuralNetworkObject
-
-    early_stop = EarlyStopping(monitor=parameters['EarlyStopping_monitor'], patience=parameters['EarlyStopping_patience'])
+    NeuralNetworkObject = keras.Sequential()
+    NeuralNetworkObject.add(tf.keras.Input(shape=(X_train.shape[1],)))
+    for layer,neurons in enumerate(parameters['headen_layers_neurons']):
+        NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
+    NeuralNetworkObject.add(tf.keras.layers.Dense(output_neurons, activation=parameters['output_activation']))
     
     
-    NeuralNetworkObject = KerasClassifier(build_fn=create_model, callbacks=[early_stop],
+    # Compile the model
+    NeuralNetworkObject.compile(
+        loss=parameters['loss'],
+        optimizer=parameters['optimizer'],
+        metrics=parameters['metrics'])
+
+    early_stop = EarlyStopping(monitor=parameters['early_stopping_monitor'], patience=parameters['early_stopping_patience'])
+    
+    
+    NeuralNetworkObject.fit(X_train, y_to_fit,
+                   callbacks=[early_stop],
                    batch_size=parameters['batch_size'],
                    validation_split=parameters['validation_split'],
-                   epochs=parameters['epochs'], verbose=1)
+                   epochs=parameters['epochs'], verbose=0)
     
-    NeuralNetworkObject.fit(X_train, model_y_train)
-    
-    if number_of_classes == 2:
-        y_prediction = NeuralNetworkObject.predict(X_test)
-        y_prediction = encoder.inverse_transform(y_prediction)
-        y_prediction_train = NeuralNetworkObject.predict(X_train)
-        y_prediction_train = encoder.inverse_transform(y_prediction_train)
+    if parameters['output_activation'] == 'sigmoid':
+        y_prediction = (NeuralNetworkObject.predict(X_test) > 0.5).astype("int32")
+        y_prediction = encoder.inverse_transform(y_prediction.ravel())
+        y_prediction_train = (NeuralNetworkObject.predict(X_train) > 0.5).astype("int32")
+        y_prediction_train = encoder.inverse_transform(y_prediction_train.ravel())
         
     else:
-        y_prediction = NeuralNetworkObject.predict(X_test)
+        y_prediction = np.argmax(NeuralNetworkObject.predict(X_test), axis=-1)
         y_prediction = encoder.inverse_transform(y_prediction)
-        y_prediction_train = NeuralNetworkObject.predict(X_train)
+        y_prediction_train = np.argmax(NeuralNetworkObject.predict(X_train), axis=-1)
         y_prediction_train = encoder.inverse_transform(y_prediction_train)
     
     return np.array(y_prediction).ravel(), np.array(y_prediction_train).ravel(), NeuralNetworkObject

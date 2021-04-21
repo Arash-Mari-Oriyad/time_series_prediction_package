@@ -2,6 +2,19 @@ import pandas as pd
 import numpy as np
 import sys
 
+def temporal_shuffle(data):
+    # create df of temporal ids, shuffle the temporal ids in the df and
+    # rearrange data based on order of temporal ids in the shuffled df
+    temporal_id_df = data[['temporal id']].drop_duplicates()
+    temporal_id_df = temporal_id_df.iloc[np.random.permutation(len(temporal_id_df))]
+    temporal_id_df = temporal_id_df.reset_index(drop = True).reset_index()
+    data = pd.merge(data, temporal_id_df, how = 'left', on=['temporal id'])
+    data = data.sort_values(by = ['index','spatial id'])
+    data = data.drop(['index'], axis = 1)
+    
+    return data
+
+
 def split_data(data, forecast_horizon, instance_testing_size, instance_validation_size, fold_total_number,
                fold_number, splitting_type = 'instance', instance_random_partitioning = False,
                granularity = 1, verbose = 0):
@@ -10,7 +23,7 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
         try:
             data = pd.read_csv(data)
         except FileNotFoundError:
-            sys.exit("The address '{0}' is not valid.".format(data))
+            sys.exit("File '{0}' does not exist.".format(data))
         
     
     # initializing
@@ -18,23 +31,16 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
     validation_data = None
     testing_data = None
     
-    data['spatial id'] = data['spatial id'].astype(str)
-    data['temporal id'] = data['temporal id'].astype(str)
+    gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
+    
+    if (splitting_type == 'fold') and (instance_testing_size is not None):
+        sys.exit("The cross validation method must not to be used for the splitting data to the training and testing set.")
+    
     
     number_of_spatial_units = len(data['spatial id'].unique())
     number_of_temporal_units = len(data['temporal id'].unique())
     
     data.sort_values(by = ['temporal id','spatial id'], inplace = True)
-    # if instance_testing_size has value its mean this is a test mode and whole data has been passed to function
-    # so the last part of the data containing null values for target and must be removed
-    if instance_testing_size is not None:
-        data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
-        number_of_temporal_units = number_of_temporal_units - (forecast_horizon * granularity)
-
-    if instance_random_partitioning == False:
-        gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
-    else:
-        gap = 0
     
     if splitting_type == 'instance':
         
@@ -56,21 +62,8 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
                 instance_validation_size = round(instance_validation_size * (number_of_temporal_units))
                 
         elif (type(instance_validation_size) != int) and (instance_validation_size is not None):
-            sys.exit("The type of instance_validation_size must be int or float.")
-
-        
-        # shuffling the temporal ids in the data for random partitioning
-        if instance_random_partitioning == True:
-                # data = data.iloc[np.random.permutation(len(data))]
+            sys.exit("The type of instance_validation_size must be int or float.")                
                 
-                # create df of temporal ids, shuffle the temporal ids in the df and
-                # rearrange data based on order of temporal ids in the shuffled df
-                temporal_id_df = data[['temporal id']].drop_duplicates()
-                temporal_id_df = temporal_id_df.iloc[np.random.permutation(len(temporal_id_df))]
-                temporal_id_df = temporal_id_df.reset_index(drop = True).reset_index()
-                data = pd.merge(data, temporal_id_df, how = 'left', on=['temporal id'])
-                data = data.sort_values(by = ['index','spatial id'])
-                data = data.drop(['index'], axis = 1)
                 
         if (instance_testing_size is not None) and (instance_validation_size is None):
             if instance_testing_size > len(data):
@@ -81,18 +74,23 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
                 print("The splitting of the data is running. The training set includes {0}, and the testing set includes {1} instances.\n".format(len(training_data),len(testing_data)))
         
         elif (instance_testing_size is None) and (instance_validation_size is not None):
-            if instance_validation_size > len(data):
+            if (instance_validation_size* number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_validation_size is too large for input data.")
+            # shuffling the temporal ids in the data for random partitioning
+            if instance_random_partitioning == True:
+                data = temporal_shuffle(data.copy())
             validation_data = data.tail(instance_validation_size * number_of_spatial_units).copy()
             training_data = data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
             if verbose > 0:
                 print("The splitting of the data is running. The training set includes {0}, and the validation set includes {1} instances.\n".format(len(training_data),len(validation_data)))
         
         elif (instance_testing_size is not None) and (instance_validation_size is not None):
-            if instance_testing_size + instance_validation_size > len(data):
+            if ((instance_testing_size + instance_validation_size)* number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_testing_size and instance_validation_size are too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
             train_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
+            if instance_random_partitioning == True:
+                train_data = temporal_shuffle(train_data.copy())
             validation_data = train_data.tail(instance_validation_size * number_of_spatial_units).copy()
             training_data = train_data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
             if verbose > 0:
