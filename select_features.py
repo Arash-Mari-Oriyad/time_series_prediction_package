@@ -1,30 +1,24 @@
 import pandas as pd
+import re
 
-def select_features(data, ordered_covariates_or_features, feature_set_indices):
+def select_features(data, ordered_covariates_or_features):
 	if isinstance(data, str):	# if the input named 'data' is a string (is a directory address)
 		data = pd.read_csv(data)
 	
-	type_flag = 1	# flag for detecting feature type (0) or covariate type (1)
 	output_data = pd.DataFrame()	# final dataframe to be returned
 
-	for item in ordered_covariates_or_features:
-		if ' t-' in item:	# there is ' t-' at the end of name
-			type_flag = 0
-			break
-	
-	if type_flag == 0:	# ordered_features
-		features_to_be_selected  = []
-		for index in feature_set_indices:
-			features_to_be_selected.append(ordered_covariates_or_features[index])
+	# selecting temporal and futuristic features or covariates from the ordered_covariates_or_features list
+	check_list = [item for item in ordered_covariates_or_features if item.count(' ') != 0]
 
-		output_data = data[features_to_be_selected]
+	# type_flag for detecting feature type (False) or covariate type (True)
+	# check if all elements in check_list meet the condition for being covariate type
+	type_flag = all(re.search(' t$', element) or re.search(' t[+]$', element) for element in check_list)
+	
+	if type_flag == False:	# ordered_features
+		output_data = data[ordered_covariates_or_features]
 
 	elif type_flag == 1:	# ordered_covariates
-		covariates_to_be_selected  = []
-		for index in feature_set_indices:
-			covariates_to_be_selected.append(ordered_covariates_or_features[index])
-
-		for covariate_name in covariates_to_be_selected:
+		for covariate_name in ordered_covariates_or_features:
 			# makes a dataframe (tmp_df) that contains columns containing substring <covariate_name>
 			tmp_df = data.filter(regex=covariate_name)
 			output_data = pd.concat([output_data, tmp_df], axis=1)	# concat two dataframes
