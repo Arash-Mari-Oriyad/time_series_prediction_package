@@ -350,6 +350,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
         # removing the last part of the data which is related to the last temporal units and contains
         # null values for target
+        data = data.sort_values(by = ['temporal id', 'spatial id'])
         number_of_spatial_units = len(data['spatial id'].unique())
         data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
         
