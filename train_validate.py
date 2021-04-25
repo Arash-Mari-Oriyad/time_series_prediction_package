@@ -76,7 +76,11 @@ def save_prediction_data_frame(models_name_list, fold_total_number, target_real_
 
         model_best_history_length = models_best_history_length[model_name]
         model_best_feature_set_number = models_best_feature_set_number[model_name]
-
+        
+        if model_best_history_length is None:
+            model_best_history_length = 1
+            model_best_feature_set_number = 0
+        
         if prediction_type == 'validation':
             temp = target_real_values[model_best_history_length][fold_number]['validation']
             temp.loc[:,('predicted value')] = fold_validation_predictions[model_name][(fold_number, model_best_history_length, model_best_feature_set_number)]
@@ -127,7 +131,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                    fold_total_number, instance_random_partitioning = False, max_history_length = 1,
                    forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
                    performance_measure = ['MAPE'], benchmark = 'MAPE', input_scaler = None, output_scaler = None,
-                   performance_report = True, granularity = 1, target_mode = 'normal', target_granularity = 1, column_identifier = None,
+                   performance_report = True, granularity = 1, target_mode = 'normal', target_granularity = 1,
                    save_predictions = True, verbose = 1):
     
     
@@ -249,7 +253,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 print("\nWarning : The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
     
     ############## ordered_covariates_or_features and feature_sets_indices
-    
+
     if type(ordered_covariates_or_features) == list:
         second_level_type_list = [isinstance(item,list) for item in ordered_covariates_or_features]
         second_level_type_str = [isinstance(item,str) for item in ordered_covariates_or_features]
@@ -263,11 +267,22 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
             ordered_covariates_or_features = repeated_list
     else:
         sys.exit("The ordered_covariates_or_features must be of type list.")
-    
+
     feature_sets_indices = [] # feature_set_indices set of all history lengths
     for history in range(max_history):
         history_feature_sets_indices = [] # feature_set_indices for specific history length
-        for number_of_features in range(1,len(ordered_covariates_or_features[history])+1):
+
+        # the start point for considering number of features or covariates in feature set indices
+        # if futuristic covariates exist in the list, the start point will set in a way to always
+        # consider futuristic covariates in the index
+        start_point = 0
+        for feature in ordered_covariates_or_features[history]:
+            if len(feature.split(' '))>1:
+                if '+' in feature.split(' ')[1]:
+                    start_point +=1
+
+        if start_point == 0 : start_point = 1
+        for number_of_features in range(start_point,len(ordered_covariates_or_features[history])+1):
             history_feature_sets_indices.append(list(range(number_of_features)))
         feature_sets_indices.append(history_feature_sets_indices)
                 
@@ -361,7 +376,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                                       instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
         else:
             raw_train_data = data.copy()
-            
+        
+        # holding train data with different histories to be used in training best model in last step of function
+        train_data_dict[history] = raw_train_data.copy()
         
         # initializing the pool for parallel run
         prediction_pool = Pool(processes = len(feature_sets_indices[history-1]) * fold_total_number * len(models_list) + 5)
@@ -374,9 +391,6 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
             
             # select the features
             train_data = select_features(data = raw_train_data.copy(), ordered_covariates_or_features = names_to_select)
-            
-            # holding train data with different histories and feature_set_indices to train best model in last step of function
-            train_data_dict[(history,feature_set_number)] = train_data.copy()
                 
             for model_number, model in enumerate(models_list):
                     
@@ -491,8 +505,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                 train_prediction = fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
                                 validation_prediction = fold_validation_predictions[model_name][(fold_number, history, feature_set_number)], 
                                 forecast_horizon = forecast_horizon, granularity = granularity)
-                            print(validation_trivial_values)
-
+            
 
                         fold_validation_error[fold_number][measure] = performance(true_values = validation_true_values,
                                                                                   predicted_values = validation_predicted_values, 
@@ -512,10 +525,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                     # update the best history length and best feature set based on the value of benchmark measure
                     if measure == benchmark:
                         if measure in ['MAE', 'MAPE', 'MASE', 'MSE']:
+                            
                             if validation_errors[measure][model_name][(history, feature_set_number)] < models_min_validation_error[model_name]:
                                 models_min_validation_error[model_name] = validation_errors[measure][model_name][(history, feature_set_number)]
                                 models_best_history_length[model_name] = history
-                                models_best_feature_set_number[model_name] = feature_set_number                                
+                                models_best_feature_set_number[model_name] = feature_set_number 
                         else:
                             if validation_errors[measure][model_name][(history, feature_set_number)] > models_min_validation_error[model_name]:
                                 models_min_validation_error[model_name] = validation_errors[measure][model_name][(history, feature_set_number)]
@@ -541,9 +555,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if performance_report == True:
         
         report_performance(errors_dict = validation_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, column_identifier = column_identifier, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'validation')
+                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'validation')
         report_performance(errors_dict = training_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, column_identifier = column_identifier, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'training')
+                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'training')
         
     
     
@@ -568,7 +582,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 best_model_number = model_number
                 
     # training the best model using the data with the overall best history length and feature set
-    best_train_data = train_data_dict[(best_history_length,best_feature_set_number)]
+    best_train_data = train_data_dict[best_history_length]
+    best_indices = feature_sets_indices[best_history_length-1][best_feature_set_number]
+    names_to_select = [ordered_covariates_or_features[best_history_length-1][index] for index in best_indices]
+    # select the features
+    best_train_data = select_features(data = best_train_data.copy(), ordered_covariates_or_features = names_to_select)
     
     best_model_parameters = models_parameter_list[best_model_number]
     
