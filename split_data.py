@@ -69,7 +69,10 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
             if instance_testing_size > len(data):
                 sys.exit("The specified instance_testing_size is too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
-            training_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
+            if instance_testing_size > 0:
+                training_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
+            else:
+                training_data = data
             if verbose > 0:
                 print("The splitting of the data is running. The training set includes {0}, and the testing set includes {1} instances.\n".format(len(training_data),len(testing_data)))
         
@@ -80,7 +83,10 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
             if instance_random_partitioning == True:
                 data = temporal_shuffle(data.copy())
             validation_data = data.tail(instance_validation_size * number_of_spatial_units).copy()
-            training_data = data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
+            if instance_validation_size > 0:
+                training_data = data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
+            else:
+                training_data = data
             if verbose > 0:
                 print("The splitting of the data is running. The training set includes {0}, and the validation set includes {1} instances.\n".format(len(training_data),len(validation_data)))
         
@@ -88,11 +94,17 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
             if ((instance_testing_size + instance_validation_size)* number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_testing_size and instance_validation_size are too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
-            train_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
+            if instance_testing_size > 0:
+                train_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
+            else:
+                train_data = data
             if instance_random_partitioning == True:
                 train_data = temporal_shuffle(train_data.copy())
             validation_data = train_data.tail(instance_validation_size * number_of_spatial_units).copy()
-            training_data = train_data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
+            if instance_validation_size > 0:
+                training_data = train_data.iloc[:-(instance_validation_size * number_of_spatial_units)].copy()
+            else:
+                training_data = train_data
             if verbose > 0:
                 print("The splitting of the data is running. The training set, validation set, and testing set includes {0}, {1}, {2} instances respectively.\n".format(len(training_data),len(validation_data),len(testing_data)))
         
