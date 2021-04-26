@@ -6,10 +6,12 @@ import configurations
 
 
 def rank_covariates(data,
-                    ranking_method: str,
-                    forced_covariates: list):
+                    ranking_method: str):
     if isinstance(data, str):
-        data = pd.read_csv(data)
+        try:
+            data = pd.read_csv(data)
+        except Exception as e:
+            sys.exit(str(e))
     elif isinstance(data, pd.DataFrame):
         pass
     else:
@@ -17,37 +19,18 @@ def rank_covariates(data,
 
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
-    deleted_temporal_features = [column
-                                 for column in data.columns.values
-                                 if len(column.split(' ')) > 1 and 't-' in column.split(' ')[1]]
-    data.drop(deleted_temporal_features, axis=1, inplace=True)
-    futuristic_features = [column
-                           for column in data.columns.values
-                           if len(column.split(' ')) > 1 and
-                           't+' in column.split(' ')[1] and 't+']
-    futuristic_features_ls = {}
-    for futuristic_feature in futuristic_features:
-        temp = futuristic_feature.split(' ')[0]
-        l = int(futuristic_feature.split(' ')[1][futuristic_feature.split(' ')[1].index('+'):])
-        if temp not in futuristic_features_ls.keys() or \
-                l < futuristic_features_ls[temp]:
-            futuristic_features_ls[temp] = l
-    deleted_futuristic_features = [futuristic_feature
-                                   for futuristic_feature in futuristic_features
-                                   if not (futuristic_features_ls[futuristic_feature.split(' ')[0]] ==
-                                           int(futuristic_feature.split(' ')[1][
-                                               futuristic_feature.split(' ')[1].index('+'):]))]
-    data.drop(deleted_futuristic_features, axis=1, inplace=True)
 
-    forced_covariates = [forced_covariate.replace(' ', '_') for forced_covariate in forced_covariates]
-    possible_forced_features = [forced_covariate + ' t' if i == 0
-                                else forced_covariate + ' t+' + str(i)
-                                for forced_covariate in forced_covariates for i in range(1000)]
-    possible_forced_features.extend(forced_covariates)
-    forced_features = [forced_feature
-                       for forced_feature in possible_forced_features
-                       if forced_feature in data.columns.values]
-    data.drop(forced_features, axis=1, inplace=True)
+    deleted_temporal_features = [column_name
+                                 for column_name in data.columns.values
+                                 if len(column_name.split()) > 1 and column_name.split()[1].startswith('t-')]
+    data.drop(deleted_temporal_features, axis=1, inplace=True)
+    futuristic_covariates = list(set([column_name.split()[0] + ' t+'
+                                 for column_name in data.columns.values
+                                 if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]))
+    futuristic_features = [column_name
+                           for column_name in data.columns.values
+                           if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
+    data.drop(futuristic_features, axis=1, inplace=True)
 
     cor = data.corr().abs()
     valid_feature = cor.index.drop([configurations.TARGET_COLUMN_NAME])
@@ -74,19 +57,6 @@ def rank_covariates(data,
     else:
         ix = data.corr().abs().sort_values(configurations.TARGET_COLUMN_NAME, ascending=False).index.drop(
             [configurations.TARGET_COLUMN_NAME])
-    ranked_features = [forced_feature
-                       if len(forced_feature.split(' ')) == 1 or 't+' not in forced_feature.split(' ')[1]
-                       else forced_feature.split(' ')[0] + ' ' +
-                            forced_feature.split(' ')[1][:forced_feature.split(' ')[1].index('+') + 1]
-                       for forced_feature in forced_features]
-    ranked_features.extend(ix)
-    return ranked_features
-
-
-if __name__ == '__main__':
-    ranked_features = rank_covariates(data='historical_data h=2.csv',
-                                      ranking_method='mRMR',
-                                      forced_covariates=[])
-
-    # print(len(ranked_features))
-    # print(ranked_features)
+    ranked_covariates = futuristic_covariates
+    ranked_covariates.extend(ix)
+    return ranked_covariates

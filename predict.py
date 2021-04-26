@@ -34,7 +34,6 @@ def predict(data: list,
     target_mode, target_granularity, granularity = None, None, None
     target_column_name = list(filter(lambda x: x.startswith('Target '), data[0].columns.values))[0]
     temp = target_column_name.split(' ')[-1][1:-1]
-    print(temp)
     if temp.startswith('augmented'):
         granularity = int(temp.split(' ')[2])
         temp = temp[temp.index('-') + 2:]
@@ -53,11 +52,7 @@ def predict(data: list,
 
     # ranking
     ordered_covariates_or_features = rank_covariates.rank_covariates(data=pd.DataFrame.copy(data[2]),
-                                                                     ranking_method='mRMR',
-                                                                     forced_covariates=['virus-pressure',
-                                                                                        'social-distancing-encounters'])
-    print(ordered_covariates_or_features)
-    print(len(ordered_covariates_or_features))
+                                                                     ranking_method='mRMR')
 
     # train_validate
 

@@ -6,11 +6,13 @@ import configurations
 
 
 def rank_features(data,
-                  ranking_method: str,
-                  forced_features: list):
+                  ranking_method: str):
 
     if isinstance(data, str):
-        data = pd.read_csv(data)
+        try:
+            data = pd.read_csv(data)
+        except Exception as e:
+            sys.exit(str(e))
     elif isinstance(data, pd.DataFrame):
         pass
     else:
@@ -18,7 +20,10 @@ def rank_features(data,
 
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
-    data.drop(forced_features, axis=1, inplace=True)
+    futuristic_features = [column_name
+                           for column_name in data.columns.values
+                           if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
+    data.drop(futuristic_features, axis=1, inplace=True)
 
     cor = data.corr().abs()
     valid_feature = cor.index.drop([configurations.TARGET_COLUMN_NAME])
@@ -45,15 +50,6 @@ def rank_features(data,
     else:
         ix = data.corr().abs().sort_values(configurations.TARGET_COLUMN_NAME, ascending=False).index.drop(
             [configurations.TARGET_COLUMN_NAME])
-    ranked_features = forced_features
+    ranked_features = futuristic_features
     ranked_features.extend(ix)
     return ranked_features
-
-
-if __name__ == '__main__':
-    ranked_features = rank_features(data='historical_data h=2.csv',
-                                      ranking_method='mRMR',
-                                      forced_features=[])
-
-    # print(len(ranked_features))
-    # print(ranked_features)
