@@ -29,7 +29,7 @@ def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates
 	)
 
 	# separate some data which are needed later
-	base_data = training_data['Target'].values.tolist()
+	base_data = training_data['Normal target'].values.tolist()
 	training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
 	test_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
 
@@ -63,8 +63,8 @@ def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates
 		trivial_values = get_trivial_values(
 			train_true_values_df=training_target, 
 			validation_true_values_df=test_target, 
-			train_prediction=training_predictions, 
-			validation_prediction=testing_predictions, 
+			train_prediction=training_prediction, 
+			validation_prediction=test_prediction, 
 			forecast_horizon=forecast_horizon, 
 			granularity=granularity
 		)
