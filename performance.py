@@ -108,6 +108,6 @@ def performance(true_values, predicted_values, performance_measures=['MAPE'], tr
 		elif error_type.lower() == 'auc':
 			errors.append(auc(true_values, predicted_values, labels))
 		elif error_type.lower() == 'aupr':
-			errors.append(aupr(true_values, predicted_values, labels))
+			errors.append(aupr(true_values, predicted_values, pos_label))
 
 	return errors
