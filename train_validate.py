@@ -18,6 +18,7 @@ from scaling import target_descale
 from select_features import select_features
 from train_evaluate import train_evaluate
 from get_normal_target import get_normal_target
+from get_trivial_values import get_trivial_values
 
 
 
@@ -109,56 +110,11 @@ def save_prediction_data_frame(models_name_list, fold_total_number, target_real_
     
 
 
-def get_trivial_values(train_true_values_df, validation_true_values_df, train_prediction, validation_prediction, forecast_horizon, granularity):
-    
-    '''
-    :::inputs:::
-    
-    train_true_values_df : a data frame including columns 'spatial id', 'temporal id', 'Target', 'Normal target'
-                        from the training set
-    validation_true_values_df : a data frame including columns 'spatial id', 'temporal id', 'Target', 'Normal target'
-                        from the test set           
-    train_prediction : list of predicted values for the training set
-    validation_prediction : list of predicted values for the test set
-    target_mode = 'normal' , 'cumulative' , 'moving average', 'differential' the mode of the target variable
-    target_granularity : number of smaller temporal units which is averaged to get the moving average target
-    
-    :::outputs:::
-    
-    train_true_values: a list target real values in the training set
-    train_predicted_values: a list predicted values for the training set
-    train_trivial_values: a list of trivial values for the training set
-    validation_true_values: a list target real values in the validation set
-    validation_predicted_values: a list predicted values for the validation set
-    validation_trivial_values: a list of trivial values for the validation set
-    
-    '''
-    train_true_values_df.loc[:,('prediction')] = train_prediction
-    validation_true_values_df.loc[:,('prediction')] = validation_prediction
-    number_of_spatial_units = len(train_true_values_df['spatial id'].unique())
-    train_true_values_df = train_true_values_df.sort_values(by = ['temporal id', 'spatial id'])
-    accessible_train_df = train_true_values_df.copy().iloc[(forecast_horizon * granularity * number_of_spatial_units):,:]
-    train_true_values = list(np.array(accessible_train_df['Normal target']).reshape(-1))
-    train_predicted_values = list(np.array(accessible_train_df['prediction']).reshape(-1))
-    validation_true_values = list(np.array(validation_true_values_df['Normal target']).reshape(-1))
-    validation_predicted_values = list(np.array(validation_true_values_df['prediction']).reshape(-1))
-    val_size = len(validation_true_values)
-    train_size = len(train_true_values)
-    
-    base_df = train_true_values_df.append(validation_true_values_df)
-    base_df = base_df.sort_values(by = ['temporal id', 'spatial id'])
-    base_df = base_df.iloc[:-(forecast_horizon * granularity * number_of_spatial_units),:]
-    validation_trivial_values = list(np.array(base_df.tail(val_size)['Normal target']).reshape(-1))
-    base_df = base_df.iloc[:-(val_size),:]
-    train_trivial_values = list(np.array(base_df.tail(train_size)['Normal target']).reshape(-1))
-    
-    return train_true_values, train_predicted_values, train_trivial_values, validation_true_values, validation_predicted_values, validation_trivial_values
-
 ###########################################################################################
     
     
-def train_validate(data, ordered_covariates_or_features, instance_validation_size, instance_testing_size,
-                   fold_total_number, instance_random_partitioning = False,
+def train_validate(data, ordered_covariates_or_features, instance_validation_size = 0.3, instance_testing_size = 0,
+                   fold_total_number = 5, instance_random_partitioning = False,
                    forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
                    performance_measure = ['MAPE'], performance_benchmark = 'MAPE', input_scaler = None, output_scaler = None,
                    performance_report = True, granularity = 1, target_mode = 'normal', target_granularity = 1,
@@ -166,7 +122,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     
     supported_models_name = ['nn', 'knn', 'glm', 'gbm']
-    supported_performance_measures = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']
+    supported_performance_measures = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AUC', 'AUPR']
     models_list = [] # list of models (str or callable)
     models_parameter_list = [] # list of models' parameters (dict or None)
     models_name_list = [] # list of models' names (str)
@@ -252,7 +208,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
     unsupported_measures = list(set(performance_measure)-set(supported_performance_measures))
     if len(unsupported_measures) > 0:
-        print("\nWarning: Some of the specified measures are not valid:\n{0}\nThe supported measures are: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']\n".format(unsupported_measures))
+        print("\nWarning: Some of the specified measures are not valid:\n{0}\nThe supported measures are: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AUC', 'AUPR']\n".format(unsupported_measures))
     
     performance_measure = list(set([measure for measure in supported_performance_measures if measure in performance_measure]))
     
@@ -265,7 +221,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     ############## performance_benchmark input
     
     if performance_benchmark not in supported_performance_measures:
-        print("\nWarning: The specified performance_benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']\nThe incompatible cases will be ignored and replaced with 'MAPE'.\n")
+        print("\nWarning: The specified performance_benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AUC', 'AUPR']\nThe incompatible cases will be ignored and replaced with 'MAPE'.\n")
         performance_benchmark = 'MAPE'
     # set the appropriate min error based on performance_benchmark measure
     if performance_benchmark in ['MAE', 'MAPE', 'MASE', 'MSE']:
@@ -628,5 +584,4 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                               verbose = 0)
     
     return best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, best_trained_model
-
 
