@@ -60,8 +60,7 @@ def aupr(true_values, predicted_values, pos_label):
 
 	return auc_precision_recall
 
-def performance(true_values, predicted_values, performance_measures=['MAPE'], trivial_values=[], method="normal", period=7, 
-	labels=None, pos_label=None):
+def performance(true_values, predicted_values, performance_measures=['MAPE'], trivial_values=[], labels=None, pos_label=None):
 	"""
 	This function receives true_values and predicted_values
 	and a list of performance measures as input from the user
@@ -88,14 +87,6 @@ def performance(true_values, predicted_values, performance_measures=['MAPE'], tr
 		if ture_values contains at least one zero value then for ‘MAPE’, a warning for division by zero will be displayed.
 	*****
 	"""
-	if method.lower() == "cumulative":
-		# calculate cumulative sum
-		true_values = np.cumsum(true_values)
-		predicted_values = np.cumsum(predicted_values)
-	elif method.lower() == "moving_average":
-		# calculate moving average
-		true_values = pd.Series(true_values).rolling(window=period).mean().iloc[period-1:].values.tolist()
-		predicted_values = pd.Series(predicted_values).rolling(window=period).mean().iloc[period-1:].values.tolist()
 	
 	errors = []
 
