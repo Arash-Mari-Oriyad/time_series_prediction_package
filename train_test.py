@@ -29,7 +29,7 @@ def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates
 	)
 
 	# separate some data which are needed later
-	base_data = training_data['Normal target'].values.tolist()
+	base_data = training_data['Target'].values.tolist()
 	training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
 	test_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
 
