@@ -5,6 +5,7 @@ import pandas as pd
 import configurations
 import rank_covariates
 import rank_features
+import train_test
 import train_validate
 
 
@@ -22,8 +23,9 @@ def predict(data: list,
             instance_random_partitioning: bool = False,
             fold_total_number: int = 5,
             performance_benchmark: str = 'MAPE',
-            performance_measure: str = ['MAPE'],
-            performance_report: bool = True,
+            performance_measures: str = ['MAPE'],
+            validation_performance_report: bool = True,
+            testing_performance_report: bool = True,
             save_predictions: bool = True,
             verbose: int = 0):
     """
@@ -43,8 +45,9 @@ def predict(data: list,
         instance_random_partitioning:
         fold_total_number:
         performance_benchmark:
-        performance_measure:
-        performance_repost:
+        performance_measures:
+        validation_performance_report:
+        testing_performance_report:
         save_predictions:
         verbose:
 
@@ -116,15 +119,18 @@ def predict(data: list,
     # performance_benchmark input checking
     if performance_benchmark not in configurations.PERFORMANCE_BENCHMARKS:
         sys.exit("performance_benchmark input is not valid.")
-    # performance_measure input checking
-    if not isinstance(performance_measure, list):
-        sys.exit("performance_benchmark input format is not valid.")
-    for p_m in performance_measure:
-        if p_m not in configurations.PERFORMANCE_MEASURES:
-            sys.exit("performance_benchmark input is not valid.")
-    # performance_report input checking
-    if not isinstance(performance_report, bool):
-        sys.exit("performance_report input is not valid.")
+    # performance_measures input checking
+    if not isinstance(performance_measures, list):
+        sys.exit("performance_measures input format is not valid.")
+    for performance_measure in performance_measures:
+        if performance_measure not in configurations.PERFORMANCE_MEASURES:
+            sys.exit("performance_measures input is not valid.")
+    # validation_performance_report input checking
+    if not isinstance(validation_performance_report, bool):
+        sys.exit("validation_performance_report input is not valid.")
+    # testing_performance_report input checking
+    if not isinstance(testing_performance_report, bool):
+        sys.exit("testing_performance_report input is not valid.")
     # save_predictions input checking
     if not isinstance(save_predictions, bool):
         sys.exit("save_predictions input is not valid.")
@@ -171,6 +177,7 @@ def predict(data: list,
             ordered_covariates_or_features.append(rank_features.rank_features(data=d,
                                                                               ranking_method=ranking_method))
 
+    # main process
     if test_type == 'whole-as-one':
         # train_validate
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, best_trained_model = \
@@ -191,15 +198,32 @@ def predict(data: list,
                                           fold_total_number=fold_total_number,
                                           performance_benchmark=performance_benchmark,
                                           performance_measure=performance_measure,
-                                          performance_report=performance_report,
+                                          performance_report=validation_performance_report,
                                           save_predictions=save_predictions,
                                           verbose=verbose)
 
         # train_test
+        best_model, best_model_parameters = train_test.train_test(data=data[best_history_length-1].copy(),
+                                                                  forecast_horizon=forecast_horizon,
+                                                                  input_scaler=feature_scaler,
+                                                                  output_scaler=target_scaler,
+                                                                  target_mode=target_mode,
+                                                                  target_granularity=target_granularity,
+                                                                  granularity=granularity,
+                                                                  ordered_covariates_or_features=best_feature_or_covariate_set,
+                                                                  model_type=model_type,
+                                                                  best_model=best_model,
+                                                                  model_parameters=best_model_parameters,
+                                                                  instance_testing_size=instance_testing_size,
+                                                                  performance_measures=performance_measures,
+                                                                  performance_report=testing_performance_report,
+                                                                  save_predictions=save_predictions,
+                                                                  verbose=verbose)
 
         # predict_future
 
-    else:
+    elif test_type == 'ono-by-one':
+        # loop over test points
         pass
 
     return None
