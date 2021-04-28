@@ -77,10 +77,12 @@ def predict_future(data: pd.DataFrame or str,
     # training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
     # testing_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
 
-    scaled_training_data, scaled_testing_data = data_scaling(training_data,
-                                               testing_data,
-                                               input_scaler=feature_scaler,
-                                               output_scaler=target_scaler)
+    scaled_training_data, scaled_testing_data = data_scaling(traing_data=training_data,
+                                                             testing_data=testing_data,
+                                                             input_scaler=feature_scaler,
+                                                             output_scaler=target_scaler)
+
+    print(scaled_testing_data.isna.sum())
 
     # training_data = training_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
     # testing_data = testing_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
