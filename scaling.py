@@ -1,8 +1,10 @@
-import pandas as pd 
+import sys
+
+import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_scaler = 'logarithmic'):
+def data_scaling(traing_data, testing_data, input_scaler = 'logarithmic', output_scaler = 'logarithmic'):
     
     '''
     output_scaler = 'logarithmic' or 'normalize' or 'standardize' or None : the scaler used to scale target variable
@@ -10,17 +12,17 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
     '''
     if input_scaler is not None:
         
-        columns = list(train_data.columns)
+        columns = list(traing_data.columns)
         features = [column for column in columns if column not in ['spatial id','temporal id','Target']]
-        train_data_features = train_data[features]
-        test_data_features = test_data[features]
+        train_data_features = traing_data[features]
+        test_data_features = testing_data[features]
         
         if input_scaler == 'logarithmic':
             for feature in features:
-                if (len(test_data[test_data[feature]<0]) > 0) or (len(train_data[train_data[feature]<0]) > 0) :
+                if (len(testing_data[testing_data[feature]<0]) > 0) or (len(traing_data[traing_data[feature]<0]) > 0) :
                     sys.exit("The features includes negative values. So the logarithmic input_scaler couldn't be applied.")
-                test_data.loc[:,(feature)] = list(np.log((test_data[feature] + 1).astype(float)))
-                train_data.loc[:,(feature)] = list(np.log((train_data[feature] + 1).astype(float)))
+                testing_data.loc[:,(feature)] = list(np.log((testing_data[feature] + 1).astype(float)))
+                traing_data.loc[:,(feature)] = list(np.log((traing_data[feature] + 1).astype(float)))
 
         else:
             if input_scaler == 'standardize':       
@@ -32,8 +34,8 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
             train_data_features = scaleObject.transform(train_data_features)
             test_data_features = scaleObject.transform(test_data_features)
             
-            test_data = pd.concat([test_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(test_data_features, columns = features).reset_index(drop = True)], axis=1)
-            train_data = pd.concat([train_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(train_data_features, columns = features).reset_index(drop = True)], axis=1)
+            test_data = pd.concat([testing_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(test_data_features, columns = features).reset_index(drop = True)], axis=1)
+            train_data = pd.concat([traing_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(train_data_features, columns = features).reset_index(drop = True)], axis=1)
         
         
     if output_scaler is not None:

@@ -53,11 +53,6 @@ def predict_future(data: pd.DataFrame or str,
     testing_data = data.iloc[-(forecast_horizon * granularity * number_of_spatial_units):]
     training_data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)]
 
-    print(training_data.shape, testing_data.shape)
-    print(testing_data.isna().sum())
-
-    # print(testing_data.head(10))
-
     futuristic_features = [column_name
                            for column_name in data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
@@ -75,17 +70,18 @@ def predict_future(data: pd.DataFrame or str,
             testing_data[futuristic_feature].values[:] = value
 
     else:
-        pass
+        if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
+            sys.exit("scenario is not provided and some futuristic features have null values.")
 
     # base_data = training_data['Target'].values.tolist()
     # training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
     # testing_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
-    #
-    # training_data, testing_data = data_scaling(training_data,
-    #                                            testing_data,
-    #                                            input_scaler=feature_scaler,
-    #                                            output_scaler=target_scaler)
-    #
+
+    scaled_training_data, scaled_testing_data = data_scaling(training_data,
+                                               testing_data,
+                                               input_scaler=feature_scaler,
+                                               output_scaler=target_scaler)
+
     # training_data = training_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
     # testing_data = testing_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
     #
