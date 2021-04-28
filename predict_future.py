@@ -77,16 +77,27 @@ def predict_future(data: pd.DataFrame or str,
     # training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
     # testing_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
 
-    scaled_training_data, scaled_testing_data = data_scaling(traing_data=training_data,
-                                                             testing_data=testing_data,
+    scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data,
+                                                             test_data=testing_data,
                                                              input_scaler=feature_scaler,
                                                              output_scaler=target_scaler)
 
-    print(scaled_testing_data.isna.sum())
+    scaled_training_data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
+    scaled_training_data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
+    scaled_testing_data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
+    scaled_testing_data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
 
-    # training_data = training_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
-    # testing_data = testing_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
-    #
+    scaled_training_predictions, scaled_testing_predictions, trained_model = train_evaluate(
+        training_data=scaled_training_data,
+        validation_data=scaled_testing_data,
+        model_type=model_type,
+        model=model,
+        model_parameters=model_parameters,
+        verbose=verbose)
+
+    print(scaled_testing_data.shape)
+    print(type(scaled_testing_predictions))
+
     # training_predictions, testing_predictions, trained_model = train_evaluate(training_data=training_data,
     #                                                                           validation_data=testing_data,
     #                                                                           model=model,
@@ -94,10 +105,6 @@ def predict_future(data: pd.DataFrame or str,
     #                                                                           model_parameters=model_parameters,
     #                                                                           verbose=verbose)
 
-    # train_predictions, testing_predictions, trained_model = train_evaluate(training_data=training_data,
-    #                                                                        validation_data=testing_data,
-    #                                                                        model=best_model, verbose=0)
-    #
     # return None
 
 
