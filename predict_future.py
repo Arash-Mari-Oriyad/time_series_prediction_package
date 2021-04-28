@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 
 import configurations
-from scaling import data_scaling
+from scaling import data_scaling, target_descale
 from select_features import select_features
 
 # from split_data import split_data
@@ -21,7 +21,7 @@ def predict_future(data: pd.DataFrame or str,
                    feature_or_covariate_set: list,
                    model_type: str,
                    model: str or callable,
-                   model_parameters: list,
+                   model_parameters: list or None,
                    scenario: str or None,
                    save_predictions: bool,
                    verbose: int):
@@ -73,9 +73,7 @@ def predict_future(data: pd.DataFrame or str,
         if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
             sys.exit("scenario is not provided and some futuristic features have null values.")
 
-    # base_data = training_data['Target'].values.tolist()
-    # training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
-    # testing_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
+    base_data = training_data['Target'].values.tolist()
 
     scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data,
                                                              test_data=testing_data,
@@ -95,15 +93,15 @@ def predict_future(data: pd.DataFrame or str,
         model_parameters=model_parameters,
         verbose=verbose)
 
-    print(scaled_testing_data.shape)
-    print(type(scaled_testing_predictions))
+    training_predictions = target_descale(scaled_data=list(scaled_training_predictions),
+                                          base_data=base_data,
+                                          scaler=target_scaler)
+    testing_predictions = target_descale(scaled_data=list(scaled_testing_predictions),
+                                         base_data=base_data,
+                                         scaler=target_scaler)
 
-    # training_predictions, testing_predictions, trained_model = train_evaluate(training_data=training_data,
-    #                                                                           validation_data=testing_data,
-    #                                                                           model=model,
-    #                                                                           model_type=model_type,
-    #                                                                           model_parameters=model_parameters,
-    #                                                                           verbose=verbose)
+    print(len(testing_predictions))
+    print(testing_predictions)
 
     # return None
 
@@ -119,7 +117,7 @@ if __name__ == '__main__':
                    feature_or_covariate_set=['virus-pressure t+2', 'virus-pressure t+3', 'area', 'temperature t'],
                    model_type='regression',
                    model='knn',
-                   model_parameters=[],
+                   model_parameters=None,
                    scenario='max',
                    save_predictions=False,
                    verbose=0)
