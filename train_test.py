@@ -9,11 +9,11 @@ from scaling import target_descale
 from get_normal_target import get_normal_target
 from get_trivial_values import get_trivial_values
 
-def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates_or_features, granularity, target_mode='normal', 
-	target_granularity=1, best_model='knn', model_type='regression', model_parameters=None, input_scaler='logarithmic', 
+def train_test(data, instance_testing_size, forecast_horizon, feature_or_covariate_set, granularity, target_mode='normal', 
+	target_granularity=1, model='knn', model_type='regression', model_parameters=None, input_scaler='logarithmic', 
 	output_scaler='logarithmic', performance_measures=['MAPE'], performance_report=True, save_predictions=True, verbose=0):
 	
-	processed_data = select_features(data.copy(), ordered_covariates_or_features)
+	processed_data = select_features(data.copy(), feature_or_covariate_set)
 
 	# deleting last rows from each group (by spatial id) which meet the condition (Target == NULL)
 	# processed_data = processed_data.groupby('spatial id').apply(lambda x: x.drop(x.tail(forecast_horizon*granularity).index))
@@ -42,7 +42,7 @@ def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates
 
 	# training model with processed data	
 	training_predictions, testing_predictions, trained_model = train_evaluate(
-		training_data=training_data, validation_data=testing_data, model=best_model, model_type=model_type, 
+		training_data=training_data, validation_data=testing_data, model=model, model_type=model_type, 
 		model_parameters=model_parameters, verbose=verbose
 	)
 
@@ -90,4 +90,4 @@ def train_test(data, instance_testing_size, forecast_horizon, ordered_covariates
 		# predictions_df.to_csv('train_test_predictions.csv', index=False)
 		pass
 
-	return best_model, model_parameters
+	return model, model_parameters
