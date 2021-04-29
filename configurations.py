@@ -36,3 +36,5 @@ TARGET_SCALERS = ['logarithmic', 'normalize', 'standardize', None]
 SPLITTING_TYPES = ['training-validation', 'cross-validation']
 
 VERBOSE_OPTIONS = [0, 1, 2]
+
+SCENARIOS = ['max', 'min', 'mean', 'current']

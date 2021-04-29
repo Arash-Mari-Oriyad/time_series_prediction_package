@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 
 import configurations
+import predict_future
 import rank_covariates
 import rank_features
 import train_test
@@ -24,6 +25,7 @@ def predict(data: list,
             fold_total_number: int = 5,
             performance_benchmark: str = 'MAPE',
             performance_measures: str = ['MAPE'],
+            scenario: str or None = 'current',
             validation_performance_report: bool = True,
             testing_performance_report: bool = True,
             save_predictions: bool = True,
@@ -46,6 +48,7 @@ def predict(data: list,
         fold_total_number:
         performance_benchmark:
         performance_measures:
+        scenario:
         validation_performance_report:
         testing_performance_report:
         save_predictions:
@@ -70,7 +73,8 @@ def predict(data: list,
         sys.exit("feature_scaler input is not valid.")
     # target_scaler input checking
     if target_scaler not in configurations.TARGET_SCALERS:
-        sys.exit("target_scaler input is not valid.")  # test_type input checking
+        sys.exit("target_scaler input is not valid.")
+    # test_type input checking
     if test_type not in configurations.TEST_TYPES:
         sys.exit("test_type is not valid.")
     # feature_sets input checking
@@ -125,6 +129,9 @@ def predict(data: list,
     for performance_measure in performance_measures:
         if performance_measure not in configurations.PERFORMANCE_MEASURES:
             sys.exit("performance_measures input is not valid.")
+    # scenario
+    if not ((isinstance(scenario, str) and scenario in configurations.SCENARIOS) or scenario is None):
+        sys.exit("scenario input is not valid.")
     # validation_performance_report input checking
     if not isinstance(validation_performance_report, bool):
         sys.exit("validation_performance_report input is not valid.")
@@ -180,7 +187,7 @@ def predict(data: list,
     # main process
     if test_type == 'whole-as-one':
         # train_validate
-        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, best_trained_model = \
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate.train_validate(data=data,
                                           forecast_horizon=forecast_horizon,
                                           input_scaler=feature_scaler,
@@ -203,7 +210,7 @@ def predict(data: list,
                                           verbose=verbose)
 
         # train_test
-        best_model, best_model_parameters = train_test.train_test(data=data[best_history_length-1].copy(),
+        best_model, best_model_parameters = train_test.train_test(data=data[best_history_length - 1].copy(),
                                                                   forecast_horizon=forecast_horizon,
                                                                   input_scaler=feature_scaler,
                                                                   output_scaler=target_scaler,
@@ -221,6 +228,20 @@ def predict(data: list,
                                                                   verbose=verbose)
 
         # predict_future
+        trained_model = predict_future.predict_future(data=data[best_history_length - 1].copy(),
+                                                      forecast_horizon=forecast_horizon,
+                                                      feature_scaler=feature_scaler,
+                                                      target_scaler=target_scaler,
+                                                      target_mode=target_mode,
+                                                      target_granularity=target_granularity,
+                                                      granularity=granularity,
+                                                      feature_or_covariate_set=best_feature_or_covariate_set,
+                                                      model_type=model_type,
+                                                      model=best_model,
+                                                      model_parameters=best_model_parameters,
+                                                      scenario=scenario,
+                                                      save_predictions=save_predictions,
+                                                      verbose=verbose)
 
     elif test_type == 'ono-by-one':
         # loop over test points
