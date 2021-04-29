@@ -3,11 +3,9 @@ import sys
 import pandas as pd
 
 import configurations
+from get_normal_target import get_normal_target
 from scaling import data_scaling, target_descale
 from select_features import select_features
-
-# from split_data import split_data
-# from train_evaluate import train_evaluate
 from train_evaluate import train_evaluate
 
 
@@ -21,7 +19,7 @@ def predict_future(data: pd.DataFrame or str,
                    feature_or_covariate_set: list,
                    model_type: str,
                    model: str or callable,
-                   model_parameters: list or None,
+                   model_parameters: dict or None,
                    scenario: str or None,
                    save_predictions: bool,
                    verbose: int):
@@ -60,7 +58,7 @@ def predict_future(data: pd.DataFrame or str,
     if not ((isinstance(model, str) and model in configurations.PRE_DEFINED_MODELS) or callable(model)):
         sys.exit("model input is not valid.")
     # model_parameters
-    if not isinstance(model_parameters, list):
+    if not (isinstance(model_parameters, dict) or model_parameters is None):
         sys.exit("model_parameters input format is not valid.")
     # scenario
     if not ((isinstance(scenario, str) and scenario in configurations.SCENARIOS) or scenario is None):
@@ -93,8 +91,8 @@ def predict_future(data: pd.DataFrame or str,
 
     data.sort_values(by=['temporal id', 'spatial id'], inplace=True)
     number_of_spatial_units = len(data['spatial id'].unique())
-    testing_data = data.iloc[-(forecast_horizon * granularity * number_of_spatial_units):]
-    training_data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)]
+    testing_data = data.iloc[-(forecast_horizon * granularity * number_of_spatial_units):].copy()
+    training_data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
 
     futuristic_features = [column_name
                            for column_name in data.columns.values
@@ -116,12 +114,8 @@ def predict_future(data: pd.DataFrame or str,
         if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
             sys.exit("scenario is not provided and some futuristic features have null values.")
 
-    base_data = training_data['Target'].values.tolist()
-    # training_target = training_data['spatial id', 'temporal id', 'Target', 'Normal target']
-    # test_target = testing_data['spatial id', 'temporal id', 'Target', 'Normal target']
-
-    scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data,
-                                                             test_data=testing_data,
+    scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data.copy(),
+                                                             test_data=testing_data.copy(),
                                                              input_scaler=feature_scaler,
                                                              output_scaler=target_scaler)
 
@@ -139,17 +133,21 @@ def predict_future(data: pd.DataFrame or str,
         verbose=verbose)
 
     training_predictions = target_descale(scaled_data=list(scaled_training_predictions),
-                                          base_data=base_data,
+                                          base_data=training_data['Target'].values.tolist(),
                                           scaler=target_scaler)
     testing_predictions = target_descale(scaled_data=list(scaled_testing_predictions),
-                                         base_data=base_data,
+                                         base_data=training_data['Target'].values.tolist(),
                                          scaler=target_scaler)
 
-    # training_target, test_target, training_prediction, test_prediction = get_normal_target(
-    #     training_target=training_target, test_target=test_target,
-    #     training_prediction=list(training_predictions), test_prediction=list(testing_predictions),
-    #     target_mode=target_mode, target_granularity=target_granularity
-    # )
+    normal_training_target, normal_testing_target, normal_training_prediction, normal_test_prediction = \
+        get_normal_target(
+            training_target=training_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
+            test_target=testing_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
+            training_prediction=list(training_predictions),
+            test_prediction=list(testing_predictions),
+            target_mode=target_mode,
+            target_granularity=target_granularity
+        )
 
     if save_predictions:
         pass

@@ -6,4 +6,5 @@
 
 * target_descale -> descale_target
 
-*
+* get_normal_data input: test_target -> testing_target , test_prediction -> testing_predictions ,
+                         training_prediction -> training_predictions
