@@ -26,7 +26,8 @@ from get_trivial_values import get_trivial_values
 
 
 def report_performance(errors_dict, max_history, ordered_covariates_or_features,
-                      feature_sets_indices, column_identifier, performance_measure, models_name_list, report_type):
+                       feature_sets_indices, performance_measure,
+                       models_name_list, data_temporal_size, report_type):
     
     output_data_frame = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + performance_measure)
 
@@ -54,10 +55,8 @@ def report_performance(errors_dict, max_history, ordered_covariates_or_features,
             
             output_data_frame = output_data_frame.append(temp)
     
-    address = './performance/validation process/'
-    if not os.path.exists(address):
-                os.makedirs(address)
-    output_data_frame.to_csv(address + report_type + ' performance report.csv', index = False)
+    address = './validation process '
+    output_data_frame.to_csv(address + report_type + ' performance report T = '+ str(data_temporal_size) +'.csv', index = False)
     
 #############################################################
 
@@ -75,7 +74,7 @@ def parallel_run(prediction_arguments):
 
 def save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
                                fold_training_predictions, models_best_history_length, models_best_feature_set_number,
-                               prediction_type):
+                               data_temporal_size, prediction_type):
     
     prediction_data_frame = pd.DataFrame(columns = ['model', 'spatial id', 'temporal id','real value', 'predicted value'])
     fold_number = 1
@@ -103,13 +102,9 @@ def save_prediction_data_frame(models_name_list, fold_total_number, target_real_
 
         prediction_data_frame = prediction_data_frame.append(temp)
     
-    address = './predictions/validation process/'
-    if not os.path.exists(address):
-                os.makedirs(address)
-    prediction_data_frame.to_csv(address + prediction_type + '_prediction.csv', index = False)
+    address = './validation process '
+    prediction_data_frame.to_csv(address + prediction_type + ' prediction T = '+ str(data_temporal_size) +'.csv', index = False)
     
-
-
 ###########################################################################################
     
     
@@ -175,6 +170,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                     else:
                         models_parameter_list.append(None)
                         print("\nWarning: The values in the dictionary items of models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.\n")
+                else:
+                    print("\nWarning: Some of the predefined models are mentioned in the models' input multiple times. The duplicate cases will be ignored.\n")
             else:
                 print("\nWarning: Each dictionary item in models list must contain only one item with a name of one of the supported models as a key and the parameters of that model as value. The incompatible cases will be ignored.\n")
         
@@ -337,6 +334,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     training_errors = {measure: {model_name: {} for model_name in models_name_list} for measure in performance_measure}
     
     knn_alert_flag = 0
+    number_of_temporal_units = len(data_list[0]['temporal id'].unique())
     
     #################################################### main part
     
@@ -349,11 +347,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         # get the data with specific history length
         data = data_list[history-1].copy()
         
-        # removing the last part of the data which is related to the last temporal units and contains
-        # null values for target
-        data = data.sort_values(by = ['temporal id', 'spatial id'])
-        number_of_spatial_units = len(data['spatial id'].unique())
-        data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
+#         # removing the last part of the data which is related to the last temporal units and contains
+#         # null values for target
+#         data = data.sort_values(by = ['temporal id', 'spatial id'])
+#         number_of_spatial_units = len(data['spatial id'].unique())
+#         data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
         
         # separating the test part
         if splitting_type == 'training-validation-testing' :
@@ -390,7 +388,6 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                                   instance_validation_size = instance_validation_size, fold_total_number = fold_total_number, fold_number = fold_number,
                                                   splitting_type = split_data_splitting_type, instance_random_partitioning = instance_random_partitioning, 
                                                   granularity = granularity, verbose = 0)
-
                     
                     if (model_parameters is not None) and ('n_neighbors' in model_parameters.keys()) and (type(model_parameters['n_neighbors']) == int):
                         if (model_parameters['n_neighbors']<len(training_data)) and (knn_alert_flag == 0):
@@ -531,19 +528,21 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
         save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
-                                   'training')
+                                   number_of_temporal_units,'training')
         save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
-                                   'validation')
+                                   number_of_temporal_units,'validation')
         
     #################################################### reporting performance
     
     if performance_report == True:
         
         report_performance(errors_dict = validation_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'validation')
+                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list,
+                          data_temporal_size = number_of_temporal_units, report_type = 'validation')
         report_performance(errors_dict = training_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list, report_type = 'training')
+                          feature_sets_indices = feature_sets_indices, performance_measure = performance_measure, models_name_list = models_name_list, 
+                          data_temporal_size = number_of_temporal_units, report_type = 'training')
         
     
     
@@ -555,7 +554,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 overall_min_validation_error = models_min_validation_error[model_name]
                 best_history_length = models_best_history_length[model_name]
                 best_feature_set_number = models_best_feature_set_number[model_name]
-                best_feature_sets_indices = feature_sets_indices[best_history_length-1][best_feature_set_number]                # best_trained_model = models_best_trained_model[model_name]
+                best_feature_sets_indices = feature_sets_indices[best_history_length-1][best_feature_set_number]
                 best_model = models_list[model_number]
                 best_model_number = model_number
         else:
@@ -584,4 +583,3 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                               verbose = 0)
     
     return best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, best_trained_model
-

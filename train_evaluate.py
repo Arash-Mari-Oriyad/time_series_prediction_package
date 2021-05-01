@@ -80,7 +80,7 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
 
     elif callable(model):
         try:
-            validation_predictions, train_predictions, trained_model = model(X_training, X_validation, Y_training)
+            train_predictions, validation_predictions, trained_model = model(X_training, X_validation, Y_training)
         except ValueError:
             sys.exit("The user-defined function is not compatible with the definition.")
 

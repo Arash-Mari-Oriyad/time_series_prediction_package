@@ -15,9 +15,9 @@ def temporal_shuffle(data):
     return data
 
 
-def split_data(data, forecast_horizon, instance_testing_size, instance_validation_size, fold_total_number,
-               fold_number, splitting_type = 'instance', instance_random_partitioning = False,
-               granularity = 1, verbose = 0):
+def split_data(data, splitting_type = 'instance', instance_testing_size = None, instance_validation_size = None,
+               instance_random_partitioning = False, fold_total_number = None, fold_number = None,
+               forecast_horizon = 1, granularity = 1, verbose = 0):
     
     if type(data) == str:
         try:
@@ -135,10 +135,11 @@ def split_data(data, forecast_horizon, instance_testing_size, instance_validatio
             iteration += 1
             if iteration == fold_number:
                 break
-        if verbose == 1:
-            print("The splitting of the data is running. The validation set is fold number {0} of the total of {1} folds. Each fold includes {2} instances.".format(fold_number, fold_total_number, len(validation_fold_temporal_units)))
+        if verbose > 0:
+            print("\nThe splitting of the data is running. The validation set is fold number {0} of the total of {1} folds. Each fold includes {2} instances.\n".format(fold_number, fold_total_number, len(validation_fold_temporal_units)))
         
     else:
         sys.exit("The splitting type must be 'instance' or 'fold'.")
         
     return training_data, validation_data, testing_data
+

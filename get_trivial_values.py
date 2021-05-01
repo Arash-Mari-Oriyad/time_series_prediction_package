@@ -9,8 +9,9 @@ def get_trivial_values(train_true_values_df, validation_true_values_df, train_pr
                         from the test set           
     train_prediction : list of predicted values for the training set
     validation_prediction : list of predicted values for the test set
-    target_mode = 'normal' , 'cumulative' , 'moving average', 'differential' the mode of the target variable
-    target_granularity : number of smaller temporal units which is averaged to get the moving average target
+    forecast_horizon : number of temporal units in the future to be forecasted
+    granularity : number of smaller scale temporal units which is averaged to get the values 
+                    of bigger scale unit in the temporal transformation process
     
     :::outputs:::
     

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from sklearn.experimental import enable_hist_gradient_boosting  # noqa
-from sklearn.ensemble import HistGradientBoostingRegressor, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
@@ -37,17 +37,19 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 ####################################################### GBM: Gradient Boosting Regressor
 def GBM_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
 
-    parameters = {'loss':'least_squares', 'learning_rate':0.1, 'max_iter':100, 'max_leaf_nodes':31, 'max_depth':None,
-                'min_samples_leaf':20, 'l2_regularization':0.0, 'max_bins':255, #'categorical_features':None,
-                'monotonic_cst':None, 'warm_start':False, 'early_stopping':'auto', 'scoring':'loss',
-                'validation_fraction':0.1, 'n_iter_no_change':10, 'tol':1e-07, 'verbose':0, 'random_state':1}
+    parameters = {'loss':'ls', 'learning_rate':0.1, 'n_estimators':100, 'subsample':1.0, 'criterion':'friedman_mse', 
+                  'min_samples_split':2, 'min_samples_leaf':1, 'min_weight_fraction_leaf':0.0, 'max_depth':3, 
+                  'min_impurity_decrease':0.0, 'min_impurity_split':None, 'init':None, 'random_state':None, 
+                  'max_features':None, 'alpha':0.9, 'verbose':0, 'max_leaf_nodes':None, 'warm_start':False, 
+                  'validation_fraction':0.1, 'n_iter_no_change':None, 'tol':0.0001, 'ccp_alpha':0.0}
+                    
     
     if user_params is not None:
         for key in parameters.keys():
             if key in user_params.keys():
                 parameters[key] = user_params[key]
                 
-    GradientBoostingRegressorObject = HistGradientBoostingRegressor(**parameters)
+    GradientBoostingRegressorObject = GradientBoostingRegressor(**parameters)
 
     GradientBoostingRegressorObject.fit(X_train, y_train)
     y_prediction = GradientBoostingRegressorObject.predict(X_test)
