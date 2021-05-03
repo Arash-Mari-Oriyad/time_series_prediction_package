@@ -4,18 +4,17 @@ import pandas as pd
 
 import configurations
 from get_normal_target import get_normal_target
+from get_target_quantities import get_target_quantities
 from scaling import data_scaling, target_descale
 from select_features import select_features
 from train_evaluate import train_evaluate
 
 
 def predict_future(data: pd.DataFrame or str,
+                   future_data: pd.DataFrame or str,
                    forecast_horizon: int,
                    feature_scaler: str or None,
                    target_scaler: str or None,
-                   target_mode: str,
-                   target_granularity: int,
-                   granularity: int,
                    feature_or_covariate_set: list,
                    model_type: str,
                    model: str or callable,
@@ -24,9 +23,12 @@ def predict_future(data: pd.DataFrame or str,
                    save_predictions: bool,
                    verbose: int):
     # input checking
-    # data
+    # data input_checking
     if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
         sys.exit("data input format is not valid.")
+    # future_data input checking
+    if not (isinstance(future_data, pd.DataFrame) or isinstance(future_data, str)):
+        sys.exit("future_data input format is not valid.")
     # forecast_horizon input checking
     if not (isinstance(forecast_horizon, int) and forecast_horizon >= 1):
         sys.exit("forecast_horizon is not valid.")
@@ -36,15 +38,6 @@ def predict_future(data: pd.DataFrame or str,
     # target_scaler input checking
     if target_scaler not in configurations.TARGET_SCALERS:
         sys.exit("target_scaler input is not valid.")
-    # target_mode
-    if target_mode not in configurations.TARGET_MODES:
-        sys.exit("target_mode input is not valid.")
-    # target_granularity
-    if not (isinstance(target_granularity, int) and target_granularity >= 1):
-        sys.exit("target_granularity input is not valid.")
-    # granularity
-    if not (isinstance(granularity, int) and granularity >= 1):
-        sys.exit("granularity input is not valid.")
     # feature_or_covariate_set
     if not isinstance(feature_or_covariate_set, list):
         sys.exit("feature_or_covariate_set input format is not valid.")
@@ -70,7 +63,7 @@ def predict_future(data: pd.DataFrame or str,
     if not (isinstance(verbose, int) and verbose in configurations.VERBOSE_OPTIONS):
         sys.exit("verbose input format is not valid.")
 
-    # data preparing
+    # data and future_data preparing
     if isinstance(data, str):
         try:
             data = pd.read_csv(data)
@@ -80,19 +73,26 @@ def predict_future(data: pd.DataFrame or str,
         pass
     else:
         sys.exit("data input format is not valid.")
+    if isinstance(future_data, str):
+        try:
+            future_data = pd.read_csv(future_data)
+        except Exception as e:
+            sys.exit(str(e))
+    elif isinstance(future_data, pd.DataFrame):
+        pass
+    else:
+        sys.exit("data input format is not valid.")
 
-    for column_name in data.columns.values:
-        if column_name.startswith('Target '):
-            data.rename(columns={column_name: configurations.TARGET_COLUMN_NAME}, inplace=True)
-            break
+    target_mode, target_granularity, granularity, training_data = get_target_quantities(data=data.copy())
+    _, _, _, testing_data = get_target_quantities(data=future_data.copy())
 
-    data = select_features(data=data.copy(),
-                           ordered_covariates_or_features=feature_or_covariate_set)
+    testing_data_spatial_ids = testing_data['spatial id'].copy()
+    testing_data_temporal_ids = testing_data['temporal id'].copy()
 
-    data.sort_values(by=['temporal id', 'spatial id'], inplace=True)
-    number_of_spatial_units = len(data['spatial id'].unique())
-    testing_data = data.iloc[-(forecast_horizon * granularity * number_of_spatial_units):].copy()
-    training_data = data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units)].copy()
+    training_data = select_features(data=training_data.copy(),
+                                    ordered_covariates_or_features=feature_or_covariate_set)
+    testing_data = select_features(data=testing_data.copy(),
+                                   ordered_covariates_or_features=feature_or_covariate_set)
 
     futuristic_features = [column_name
                            for column_name in data.columns.values
@@ -124,13 +124,13 @@ def predict_future(data: pd.DataFrame or str,
     scaled_testing_data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     scaled_testing_data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
 
-    scaled_training_predictions, scaled_testing_predictions, trained_model = train_evaluate(
-        training_data=scaled_training_data,
-        validation_data=scaled_testing_data,
-        model_type=model_type,
-        model=model,
-        model_parameters=model_parameters,
-        verbose=verbose)
+    scaled_training_predictions, scaled_testing_predictions, trained_model = \
+        train_evaluate(training_data=scaled_training_data,
+                       validation_data=scaled_testing_data,
+                       model_type=model_type,
+                       model=model,
+                       model_parameters=model_parameters,
+                       verbose=verbose)
 
     training_predictions = target_descale(scaled_data=list(scaled_training_predictions),
                                           base_data=training_data['Target'].values.tolist(),
@@ -139,7 +139,7 @@ def predict_future(data: pd.DataFrame or str,
                                          base_data=training_data['Target'].values.tolist(),
                                          scaler=target_scaler)
 
-    normal_training_target, normal_testing_target, normal_training_prediction, normal_test_prediction = \
+    normal_training_target, normal_testing_target, normal_training_prediction, normal_testing_prediction = \
         get_normal_target(
             training_target=training_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
             test_target=testing_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
@@ -149,24 +149,15 @@ def predict_future(data: pd.DataFrame or str,
             target_granularity=target_granularity
         )
 
+    data_to_save = pd.DataFrame()
+    data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
+    data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
+    if isinstance(model, str):
+        data_to_save.loc[:, 'model name'] = model
+    data_to_save.loc[:, 'real'] = None
+    data_to_save.loc[:, 'prediction'] = pd.Series(normal_testing_prediction)
+
     if save_predictions:
-        pass
+        data_to_save.to_csv(f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv')
 
     return trained_model
-
-
-if __name__ == '__main__':
-    predict_future(data='historical_data h=2.csv',
-                   forecast_horizon=4,
-                   feature_scaler=None,
-                   target_scaler=None,
-                   target_mode='normal',
-                   target_granularity=1,
-                   granularity=1,
-                   feature_or_covariate_set=['virus-pressure t+2', 'virus-pressure t+3', 'area', 'temperature t'],
-                   model_type='regression',
-                   model='knn',
-                   model_parameters=None,
-                   scenario='max',
-                   save_predictions=False,
-                   verbose=0)
