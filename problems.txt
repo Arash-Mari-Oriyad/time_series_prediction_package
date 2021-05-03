@@ -8,3 +8,5 @@
 
 * get_normal_data input: test_target -> testing_target , test_prediction -> testing_predictions ,
                          training_prediction -> training_predictions
+
+* performance_measure -> performance_measures
