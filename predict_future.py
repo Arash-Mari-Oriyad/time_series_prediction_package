@@ -1,3 +1,4 @@
+import os
 import sys
 
 import pandas as pd
@@ -152,12 +153,23 @@ def predict_future(data: pd.DataFrame or str,
     data_to_save = pd.DataFrame()
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
-    if isinstance(model, str):
-        data_to_save.loc[:, 'model name'] = model
+    data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else 'custom_model'
     data_to_save.loc[:, 'real'] = None
     data_to_save.loc[:, 'prediction'] = pd.Series(normal_testing_prediction)
 
+    save_predictions_address = \
+        f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
+
     if save_predictions:
-        data_to_save.to_csv(f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv')
+        if os.path.exists(save_predictions_address):
+            old_saved_data = pd.read_csv(save_predictions_address)
+            data_to_save = pd.concat([old_saved_data, data_to_save], ignore_index=True)
+        else:
+            if not os.path.exists('prediction'):
+                os.mkdir('prediction')
+                os.mkdir('prediction/future prediction')
+            if not os.path.exists('prediction/future prediction'):
+                os.mkdir('prediction/future prediction')
+        data_to_save.to_csv(save_predictions_address)
 
     return trained_model
