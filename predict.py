@@ -3,11 +3,12 @@ import sys
 import pandas as pd
 
 import configurations
-import predict_future
-import rank_covariates
-import rank_features
-import train_test
-import train_validate
+from get_future_data import get_future_data
+from rank_covariates import rank_covariates
+from rank_features import rank_features
+from train_validate import train_validate
+from train_test import train_test
+from predict_future import predict_future
 
 
 def predict(data: list,
@@ -24,6 +25,7 @@ def predict(data: list,
             instance_random_partitioning: bool = False,
             fold_total_number: int = 5,
             performance_benchmark: str = 'MAPE',
+            performance_mode: str = 'normal',
             performance_measures: str = ['MAPE'],
             scenario: str or None = 'current',
             validation_performance_report: bool = True,
@@ -47,6 +49,7 @@ def predict(data: list,
         instance_random_partitioning:
         fold_total_number:
         performance_benchmark:
+        performance_mode:
         performance_measures:
         scenario:
         validation_performance_report:
@@ -123,6 +126,12 @@ def predict(data: list,
     # performance_benchmark input checking
     if performance_benchmark not in configurations.PERFORMANCE_BENCHMARKS:
         sys.exit("performance_benchmark input is not valid.")
+    # performance_mode input checking
+    if not isinstance(performance_mode, str):
+        sys.exit("performance_mode input format is not valid.")
+    if not any(performance_mode.startswith(performance_mode_starts_with)
+               for performance_mode_starts_with in configurations.PERFORMANCE_MODES_STARTS_WITH):
+        sys.exit("performance_mode input is not valid.")
     # performance_measures input checking
     if not isinstance(performance_measures, list):
         sys.exit("performance_measures input format is not valid.")
@@ -148,104 +157,184 @@ def predict(data: list,
     # data preparing
     if isinstance(data[0], str):
         try:
-            data = [pd.read_csv(d) for d in data]
+            data = [pd.read_csv(d).sort_values(by=['temporal id', 'spatial id']) for d in data]
         except Exception as e:
             sys.exit(str(e))
 
-    # data columns names manipulation
-    target_mode, target_granularity, granularity = None, 1, 1
-    target_column_name = list(filter(lambda x: x.startswith('Target '), data[0].columns.values))[0]
-    temp = target_column_name.split(' ')[-1][1:-1]
-    if temp.startswith('augmented'):
-        granularity = int(temp.split(' ')[2])
-        temp = temp[temp.index('-') + 2:]
-    if temp.startswith('normal'):
-        target_mode = 'normal'
-    elif temp.startswith('cumulative'):
-        target_mode = 'cumulative'
-    elif temp.startswith('differential'):
-        target_mode = 'differential'
-    elif temp.startswith('moving'):
-        target_mode = 'moving_average'
-        target_granularity = int(temp.split(' ')[3])
-    else:
-        sys.exit("Target column name is not valid.")
-    data = [d.rename(columns={target_column_name: target_column_name.split(' ')[0]}) for d in data]
+    # one_by_one checking
+    if test_type == 'one-by-one':
+        splitting_type = 'training-validation'
+        instance_validation_size = 1
+        instance_random_partitioning = False
+
+    data, future_data = get_future_data(data=[d.copy() for d in data],
+                                        forecast_horizon=forecast_horizon)
 
     # ranking
     feature_selection_type = list(feature_sets.keys())[0]
     ranking_method = list(feature_sets.values())[0]
     ordered_covariates_or_features = []
     if feature_selection_type == 'covariate':
-        ordered_covariates_or_features = rank_covariates.rank_covariates(data=pd.DataFrame.copy(data[0]),
-                                                                         ranking_method=ranking_method)
+        ordered_covariates_or_features = rank_covariates(data=data[0].copy,
+                                                         ranking_method=ranking_method)
     else:
         for d in data:
-            ordered_covariates_or_features.append(rank_features.rank_features(data=d,
-                                                                              ranking_method=ranking_method))
+            ordered_covariates_or_features.append(rank_features(data=d.copy(),
+                                                                ranking_method=ranking_method))
 
     # main process
     if test_type == 'whole-as-one':
         # train_validate
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-            train_validate.train_validate(data=data,
-                                          forecast_horizon=forecast_horizon,
-                                          input_scaler=feature_scaler,
-                                          output_scaler=target_scaler,
-                                          target_mode=target_mode,
-                                          target_granularity=target_granularity,
-                                          granularity=granularity,
-                                          ordered_covariates_or_features=ordered_covariates_or_features,
-                                          model_type=model_type,
-                                          models=models,
-                                          instance_testing_size=instance_testing_size,
-                                          splitting_type=splitting_type,
-                                          instance_validation_size=instance_validation_size,
-                                          instance_random_partitioning=instance_random_partitioning,
-                                          fold_total_number=fold_total_number,
-                                          performance_benchmark=performance_benchmark,
-                                          performance_measure=performance_measures,
-                                          performance_report=validation_performance_report,
-                                          save_predictions=save_predictions,
-                                          verbose=verbose)
+            train_validate(data=[d.copy() for d in data],
+                           forecast_horizon=forecast_horizon,
+                           input_scaler=feature_scaler,
+                           output_scaler=target_scaler,
+                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           model_type=model_type,
+                           models=models,
+                           instance_testing_size=instance_testing_size,
+                           splitting_type=splitting_type,
+                           instance_validation_size=instance_validation_size,
+                           instance_random_partitioning=instance_random_partitioning,
+                           fold_total_number=fold_total_number,
+                           performance_benchmark=performance_benchmark,
+                           performance_measure=performance_measures,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
+                           verbose=verbose)
 
         # train_test
-        best_model, best_model_parameters = train_test.train_test(data=data[best_history_length - 1].copy(),
-                                                                  forecast_horizon=forecast_horizon,
-                                                                  input_scaler=feature_scaler,
-                                                                  output_scaler=target_scaler,
-                                                                  target_mode=target_mode,
-                                                                  target_granularity=target_granularity,
-                                                                  granularity=granularity,
-                                                                  feature_or_covariate_set=best_feature_or_covariate_set,
-                                                                  model_type=model_type,
-                                                                  model=best_model,
-                                                                  model_parameters=best_model_parameters,
-                                                                  instance_testing_size=instance_testing_size,
-                                                                  performance_measures=performance_measures,
-                                                                  performance_report=testing_performance_report,
-                                                                  save_predictions=save_predictions,
-                                                                  verbose=verbose)
+        best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
+                                                       forecast_horizon=forecast_horizon,
+                                                       input_scaler=feature_scaler,
+                                                       output_scaler=target_scaler,
+                                                       feature_or_covariate_set=best_feature_or_covariate_set,
+                                                       model_type=model_type,
+                                                       model=best_model,
+                                                       model_parameters=best_model_parameters,
+                                                       instance_testing_size=instance_testing_size,
+                                                       performance_measures=performance_measures,
+                                                       performance_mode=performance_mode,
+                                                       performance_report=testing_performance_report,
+                                                       save_predictions=save_predictions,
+                                                       verbose=verbose)
 
         # predict_future
-        trained_model = predict_future.predict_future(data=data[best_history_length - 1].copy(),
-                                                      forecast_horizon=forecast_horizon,
-                                                      feature_scaler=feature_scaler,
-                                                      target_scaler=target_scaler,
-                                                      target_mode=target_mode,
-                                                      target_granularity=target_granularity,
-                                                      granularity=granularity,
-                                                      feature_or_covariate_set=best_feature_or_covariate_set,
-                                                      model_type=model_type,
-                                                      model=best_model,
-                                                      model_parameters=best_model_parameters,
-                                                      scenario=scenario,
-                                                      save_predictions=save_predictions,
-                                                      verbose=verbose)
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+            train_validate(data=[d.copy() for d in data],
+                           forecast_horizon=forecast_horizon,
+                           input_scaler=feature_scaler,
+                           output_scaler=target_scaler,
+                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           model_type=model_type,
+                           models=models,
+                           instance_testing_size=0,
+                           splitting_type=splitting_type,
+                           instance_validation_size=instance_validation_size,
+                           instance_random_partitioning=instance_random_partitioning,
+                           fold_total_number=fold_total_number,
+                           performance_benchmark=performance_benchmark,
+                           performance_measure=performance_measures,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
+                           verbose=0)
+        trained_model = predict_future(data=data[best_history_length - 1].copy(),
+                                       future_data=future_data[best_history_length - 1].copy(),
+                                       forecast_horizon=forecast_horizon,
+                                       feature_scaler=feature_scaler,
+                                       target_scaler=target_scaler,
+                                       feature_or_covariate_set=best_feature_or_covariate_set,
+                                       model_type=model_type,
+                                       model=best_model,
+                                       model_parameters=best_model_parameters,
+                                       scenario=scenario,
+                                       save_predictions=save_predictions,
+                                       verbose=verbose)
 
     elif test_type == 'ono-by-one':
         # loop over test points
-        pass
+        data_temporal_ids = [d['temporal id'].unique() for d in data]
+        if isinstance(instance_testing_size, float):
+            instance_testing_size = int(instance_testing_size * len(data_temporal_ids[0]))
+        for i in range(instance_testing_size):
+            # train_validate
+            best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+                train_validate(data=
+                               [d[d['temporal id'] in (
+                                   data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i])].copy()
+                                for index, d in enumerate(data)],
+                               forecast_horizon=forecast_horizon,
+                               input_scaler=feature_scaler,
+                               output_scaler=target_scaler,
+                               ordered_covariates_or_features=ordered_covariates_or_features,
+                               model_type=model_type,
+                               models=models,
+                               instance_testing_size=1,
+                               splitting_type=splitting_type,
+                               instance_validation_size=instance_validation_size,
+                               instance_random_partitioning=instance_random_partitioning,
+                               fold_total_number=fold_total_number,
+                               performance_benchmark=performance_benchmark,
+                               performance_measure=performance_measures,
+                               performance_report=validation_performance_report,
+                               save_predictions=save_predictions,
+                               verbose=verbose)
+
+            # train_test
+            d = data[best_history_length - 1].copy()
+            best_model, best_model_parameters = train_test(data=d[d['temporal id'] in
+                                                                  (data_temporal_ids[best_history_length][:]
+                                                                   if i == 0
+                                                                   else
+                                                                   data_temporal_ids[best_history_length][
+                                                                   :-i])].copy(),
+                                                           forecast_horizon=forecast_horizon,
+                                                           input_scaler=feature_scaler,
+                                                           output_scaler=target_scaler,
+                                                           feature_or_covariate_set=best_feature_or_covariate_set,
+                                                           model_type=model_type,
+                                                           model=best_model,
+                                                           model_parameters=best_model_parameters,
+                                                           instance_testing_size=1,
+                                                           performance_measures=performance_measures,
+                                                           performance_mode=performance_mode,
+                                                           performance_report=testing_performance_report,
+                                                           save_predictions=save_predictions,
+                                                           verbose=verbose)
+
+        # predict_future
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+            train_validate(data=[d.copy() for d in data],
+                           forecast_horizon=forecast_horizon,
+                           input_scaler=feature_scaler,
+                           output_scaler=target_scaler,
+                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           model_type=model_type,
+                           models=models,
+                           instance_testing_size=0,
+                           splitting_type=splitting_type,
+                           instance_validation_size=instance_validation_size,
+                           instance_random_partitioning=instance_random_partitioning,
+                           fold_total_number=fold_total_number,
+                           performance_benchmark=performance_benchmark,
+                           performance_measure=performance_measures,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
+                           verbose=0)
+        for i in range(forecast_horizon):
+            trained_model = predict_future(data=data[best_history_length - 1].copy(),
+                                           future_data=future_data[best_history_length - 1].copy(),
+                                           forecast_horizon=forecast_horizon,
+                                           feature_scaler=feature_scaler,
+                                           target_scaler=target_scaler,
+                                           feature_or_covariate_set=best_feature_or_covariate_set,
+                                           model_type=model_type,
+                                           model=best_model,
+                                           model_parameters=best_model_parameters,
+                                           scenario=scenario,
+                                           save_predictions=save_predictions,
+                                           verbose=verbose)
 
     return None
 
