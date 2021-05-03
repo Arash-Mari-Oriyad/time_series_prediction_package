@@ -29,6 +29,8 @@ PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']
 
 PERFORMANCE_BENCHMARKS = ['MAPE']
 
+PERFORMANCE_MODES_STARTS_WITH = ['normal', 'cumulative', 'moving_average']
+
 FEATURE_SCALERS = ['logarithmic', 'normalize', 'standardize', None]
 
 TARGET_SCALERS = ['logarithmic', 'normalize', 'standardize', None]
