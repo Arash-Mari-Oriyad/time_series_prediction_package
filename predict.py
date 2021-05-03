@@ -166,6 +166,19 @@ def predict(data: list,
         splitting_type = 'training-validation'
         instance_validation_size = 1
         instance_random_partitioning = False
+        if data[0]['spatial id'].nunique() == 1:
+            if 'AUC' in performance_measures:
+                performance_measures.remove('AUC')
+            if 'R2_score' in performance_measures:
+                performance_measures.remove('R2_score')
+            if 'AUPR' in performance_measures:
+                performance_measures.remove('AUPR')
+            if 'AUC' in performance_benchmark:
+                sys.exit('performance_benchmark is invalid')
+            if 'R2_score' in performance_measures:
+                sys.exit('performance_benchmark is invalid')
+            if 'AUPR' in performance_measures:
+                sys.exit('performance_benchmark is invalid')
 
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
@@ -322,9 +335,17 @@ def predict(data: list,
                            performance_report=validation_performance_report,
                            save_predictions=save_predictions,
                            verbose=0)
+        best_data = data[best_history_length - 1].copy()
+        best_future_data = data[best_history_length - 1].copy()
+        best_data_temporal_ids = best_data['temporal id'].unique()
+        best_future_data_temporal_ids = best_future_data['temporal id'].unique()
         for i in range(forecast_horizon):
-            trained_model = predict_future(data=data[best_history_length - 1].copy(),
-                                           future_data=future_data[best_history_length - 1].copy(),
+            temp = forecast_horizon - i - 1
+            trained_model = predict_future(data=best_data[best_data['temporal id'] in
+                                                          (best_data_temporal_ids if temp == 0
+                                                           else best_data_temporal_ids[:-temp])].copy(),
+                                           future_data=best_future_data[best_future_data['temporal id']
+                                                                        in best_future_data_temporal_ids[i]].copy(),
                                            forecast_horizon=forecast_horizon,
                                            feature_scaler=feature_scaler,
                                            target_scaler=target_scaler,
