@@ -10,3 +10,7 @@
                          training_prediction -> training_predictions
 
 * performance_measure -> performance_measures
+
+? in predict, whole-as-one, should we handle gap for predict_future
+
+?
