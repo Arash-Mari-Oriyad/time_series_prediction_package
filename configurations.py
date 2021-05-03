@@ -25,9 +25,9 @@ PRE_DEFINED_MODELS = ['nn', 'knn', 'glm', 'gbm']
 
 MODEL_TYPES = ['regression', 'classification']
 
-PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']
+PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
 
-PERFORMANCE_BENCHMARKS = ['MAPE']
+PERFORMANCE_BENCHMARKS = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
 
 PERFORMANCE_MODES_STARTS_WITH = ['normal', 'cumulative', 'moving_average']
 
