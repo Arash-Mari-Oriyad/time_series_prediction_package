@@ -1,9 +1,10 @@
 # performance function
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from sklearn import metrics
-import matplotlib.pyplot as plt
+from math import log
 
 # mean absolute error
 def mae(true_values, predicted_values):
@@ -60,32 +61,44 @@ def aupr(true_values, predicted_values, pos_label):
 
 	return auc_precision_recall
 
-def performance(true_values, predicted_values, performance_measures=['MAPE'], trivial_values=[], labels=None, pos_label=None):
+def aic_regression(y_true, y_pred, k):
+	# k = number of independent variables to build model
+	mse_error = mse(y_true, y_pred)
+	aic = 2*k - 2*log(mse_error)
+	return aic
+
+def bic_regression(y_true, y_pred, k):
+	# k = number of independent variables to build model
+	# n = sample size (#observations)
+	n = len(y_true)
+	mse_error = mse(y_true, y_pred)
+	bic = k*log(n) - 2*log(mse_error)
+	return bic
+
+def aic_classification(y_true, y_pred, k):
+	# k = number of independent variables to build model
+	mse_error = metrics.log_loss(y_true, y_pred)
+	aic = 2*k - 2*log(mse_error)
+	return aic
+
+def bic_classification(y_true, y_pred, k):
+	# k = number of independent variables to build model
+	# n = sample size (#observations)
+	n = len(y_true)
+	mse_error = metrics.log_loss(y_true, y_pred)
+	bic = k*log(n) - 2*log(mse_error)
+	return bic
+
+def performance(true_values, predicted_values, performance_measures=['MAPE'], trivial_values=[], model_type='regression', num_params=1, labels=None, pos_label=None):
 	"""
-	This function receives true_values and predicted_values
-	and a list of performance measures as input from the user
-	and returns the performance measures between true_values and predicted_values.
-
-	*****
-	Parameters:
-
-	true_values : list<float>
-		ground truth for target values.
-	predicted_values : list<float>
-		predicted values for target.
-	performance_measures : list<string>, default=['MAPE']
-		a list of performance measures.
-	verbose : int
-		the level of produced detailed logging information.
-	*****
-
-	*****
-	Returns:
-
-	errors : list<float>
-		a list of errors based on the ‘performace_measures’ input and between true_values and predicted_values.
-		if ture_values contains at least one zero value then for ‘MAPE’, a warning for division by zero will be displayed.
-	*****
+	true_values : ground truth for target values (list or array)
+	predicted_values : predicted values for target (list or array)
+	performance_measures : a list of performance measures (list or array)
+	trivial_values : just use this when want to calculate 'MASE' (list or array)
+	model_type : type of model used for solving the problem, just needed when want to calculate 'AIC' or 'BIC' (string)
+	num_params : number of independent variables to build model, just use it when want to calculate 'AIC' or 'BIC' (int)
+	labels : just for multiclass classification and when want to calculate 'AUC' (List of labels that index the classes in predicted_values)
+	pos_label : the label of positive class, just use it when want to calculate 'AUPR' (int or string)
 	"""
 	
 	errors = []
@@ -109,5 +122,15 @@ def performance(true_values, predicted_values, performance_measures=['MAPE'], tr
 			errors.append(auc(true_values, predicted_values, labels))
 		elif error_type.lower() == 'aupr':
 			errors.append(aupr(true_values, predicted_values, pos_label))
+		elif error_type.lower() == 'aic':
+			if model_type == 'regression':
+				errors.append(aic_regression(true_values, predicted_values, num_params))
+			elif model_type == 'classification':
+				errors.append(aic_classification(true_values, predicted_values, num_params))
+		elif error_type.lower() == 'bic':
+			if model_type == 'regression':
+				errors.append(bic_regression(true_values, predicted_values, num_params))
+			elif model_type == 'classification':
+				errors.append(bic_classification(true_values, predicted_values, num_params))
 
 	return errors
