@@ -252,8 +252,14 @@ def predict(data: list,
                            performance_report=validation_performance_report,
                            save_predictions=save_predictions,
                            verbose=0)
-        trained_model = predict_future(data=data[best_history_length - 1].copy(),
-                                       future_data=future_data[best_history_length - 1].copy(),
+        best_data = data[best_history_length - 1].copy()
+        best_future_data = future_data[best_history_length - 1].copy()
+        best_data_temporal_ids = best_data['temporal id'].unique()
+        temp = forecast_horizon - 1
+        trained_model = predict_future(data=best_data[best_data['temporal id'] in
+                                                      (best_data_temporal_ids if temp == 0
+                                                       else best_data_temporal_ids[:-temp])].copy(),
+                                       future_data=best_future_data.copy(),
                                        forecast_horizon=forecast_horizon,
                                        feature_scaler=feature_scaler,
                                        target_scaler=target_scaler,
