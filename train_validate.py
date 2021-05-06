@@ -25,8 +25,6 @@ from get_target_quantities import get_target_quantities
 
 #####################################################################################################
 
-
-
 def report_performance(errors_dict, max_history, ordered_covariates_or_features,
                        feature_sets_indices, performance_measure,
                        models_name_list, forecast_horizon, data_temporal_size, report_type):
@@ -198,7 +196,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         # if the item is user defined function
         elif callable(item):
             models_list.append(item)
-            models_name_list.append('user_defined_' + str(callable_model_number))
+            if item.__name__ in supported_models_name:
+                sys.exit("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
+            models_name_list.append(item.__name__)
             models_parameter_list.append(None)
             callable_model_number += 1
             
@@ -362,7 +362,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
         # separating the test part
         if splitting_type == 'training-validation-testing' :
-            raw_train_data, _ , raw_testing_data = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
+            raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
                                                       instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
                                                       instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
         else:
@@ -391,7 +391,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 for fold_number in range(1, fold_total_number + 1):
                     
                     # get the current fold training and validation data
-                    training_data, validation_data, _ = split_data(data = train_data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = None,
+                    training_data, validation_data, _ , _ = split_data(data = train_data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = None,
                                                   instance_validation_size = instance_validation_size, fold_total_number = fold_total_number, fold_number = fold_number,
                                                   splitting_type = split_data_splitting_type, instance_random_partitioning = instance_random_partitioning, 
                                                   granularity = granularity, verbose = 0)

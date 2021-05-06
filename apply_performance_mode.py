@@ -1,4 +1,4 @@
-﻿def apply_performance_mode(training_target, test_target, training_prediction, test_prediction, performance_mode):
+def apply_performance_mode(training_target, test_target, training_prediction, test_prediction, performance_mode):
     
     '''
     ::: input :::
@@ -49,25 +49,40 @@
     data = training_target.append(test_target)
     data = data.sort_values(by = ['temporal id','spatial id'])
     temporal_ids = data['temporal id'].unique()
+    training_temporal_ids = training_target['temporal id'].unique()
+    test_temporal_ids = test_target['temporal id'].unique()
+    
     
     # if performance mode is cumulative, the cumulative values of the target and prediction is calculated
     if performance_mode == 'cumulative':
         
-        target_df = data.pivot(index='temporal id', columns='spatial id', values='Normal target')
-        prediction_df = data.pivot(index='temporal id', columns='spatial id', values='prediction')
+        # next 6 lines modify the target real values mode to cumulative mode
+        cumulative_target_df = data.copy().pivot(index='temporal id', columns='spatial id', values='Normal target')
+        cumulative_target_df = cumulative_target_df.cumsum()
+        cumulative_target_df = pd.melt(cumulative_target_df.reset_index(), id_vars='temporal id', value_vars=list(cumulative_target_df.columns),
+                                         var_name='spatial id', value_name='Normal target')
+        data = data.drop(['Normal target'], axis = 1)
+        data = pd.merge(data, cumulative_target_df, how = 'left')
+        
+        # practical accessible values (target real values in training set and predicted values in test set) will be used 
+        # to get the cumulative target (predicted)
+        data['train_real_test_prediction'] = data['Normal target']
+        data.loc[data['type'] == 2,'train_real_test_prediction'] = data.loc[data['type'] == 2,'prediction']
+        data = data.sort_values(by = ['temporal id','spatial id'])
+        
+        dates = data['temporal id'].unique()
+        for index in range(len(dates)):
+            date = dates[index + 1]
+            past_date = dates[index]
+            data.loc[
+                data['temporal id'] == date, 'prediction'] = list(np.array(
+                data.loc[data['temporal id'] == date, 'prediction']) + np.array(
+                data.loc[data['temporal id'] == past_date, 'train_real_test_prediction']))
+            if date in test_temporal_ids:
+                data.loc[data['temporal id'] == date, 'train_real_test_prediction'] = list(data.loc[data['temporal id'] == date, 'prediction'])
 
-        target_df = target_df.cumsum()
-        prediction_df = prediction_df.cumsum()
-
-        target_df = pd.melt(target_df.reset_index(), id_vars='temporal id', value_vars=list(target_df.columns),
-                             var_name='spatial id', value_name='Normal target')
-        prediction_df = pd.melt(prediction_df.reset_index(), id_vars='temporal id', value_vars=list(prediction_df.columns),
-                             var_name='spatial id', value_name='prediction')
-
-
-        data = data.drop(['Normal target','prediction'], axis = 1)
-        data = pd.merge(data, target_df, how = 'left')
-        data = pd.merge(data, prediction_df, how = 'left')
+            if index == len(dates) - 2:
+                break
         
     elif performance_mode == 'moving average':
         if window > len(temporal_ids):
@@ -75,25 +90,40 @@
         
         number_of_spatial_units = len(data['spatial id'].unique())
         
-        target_df = data.pivot(index='temporal id', columns='spatial id', values='Normal target')
-        prediction_df = data.pivot(index='temporal id', columns='spatial id', values='prediction')
+        # practical accessible values (target real values in training set and predicted values in test set) will be used 
+        # to get the moving average target (predicted)
+        data['train_real_test_prediction'] = data['Normal target']
+        data.loc[data['type'] == 2,'train_real_test_prediction'] = data.loc[data['type'] == 2,'prediction']
+        data = data.sort_values(by = ['temporal id','spatial id'])
 
-        target_df = target_df.rolling(window).mean()
-        prediction_df = prediction_df.rolling(window).mean()
-
-        target_df = pd.melt(target_df.reset_index(), id_vars='temporal id', value_vars=list(target_df.columns),
-                             var_name='spatial id', value_name='Normal target')
-        prediction_df = pd.melt(prediction_df.reset_index(), id_vars='temporal id', value_vars=list(prediction_df.columns),
-                             var_name='spatial id', value_name='prediction')
-
-
-        data = data.drop(['Normal target','prediction'], axis = 1)
-        data = pd.merge(data, target_df, how = 'left')
-        data = pd.merge(data, prediction_df, how = 'left')
+        dates = data['temporal id'].unique()
+        for index in range(len(dates)):
+            ind = index + window - 1
+            date = dates[ind]
+            
+            for i in range(window - 1):
+                past_date = dates[ind - (i + 1)]
+                data.loc[
+                    data['temporal id'] == date, 'prediction'] = list(np.array(
+                    data.loc[data['temporal id'] == date, 'prediction']) + np.array(
+                    data.loc[data['temporal id'] == past_date, 'train_real_test_prediction']))
+                
+            data.loc[data['temporal id'] == date, 'prediction'] = list(np.array(
+                data.loc[data['temporal id'] == date, 'prediction'])/window)
+            
+            if ind == len(dates) - 1:
+                break
+        
+        # next 6 lines modify the target real values mode to moving average mode
+        moving_avg_target_df = data.copy().pivot(index='temporal id', columns='spatial id', values='Normal target')
+        moving_avg_target_df = moving_avg_target_df.rolling(window).mean()
+        moving_avg_target_df = pd.melt(moving_avg_target_df.reset_index(), id_vars='temporal id', value_vars=list(moving_avg_target_df.columns),
+                                         var_name='spatial id', value_name='Normal target')
+        data = data.drop(['Normal target'], axis = 1)
+        data = pd.merge(data, moving_avg_target_df, how = 'left')
         
         data = data.sort_values(by = ['temporal id', 'spatial id'])
-        
-        data = data.iloc[(window-1)*number_of_spatial_units:]
+        data = data.iloc[(window-1)*number_of_spatial_units:] # ?????????????????????? #
         
     elif performance_mode != 'normal':
         sys.exit("Specified performance_mode is not valid.")
