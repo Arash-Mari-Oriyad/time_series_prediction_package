@@ -1,5 +1,6 @@
 import pandas as pd 
 import numpy as np
+from sklearn.model_selection import KFold
 import sys
 
 def temporal_shuffle(data):
@@ -30,10 +31,11 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
     training_data = None
     validation_data = None
     testing_data = None
+    gap_data = None
     
     gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
     
-    if (splitting_type == 'fold') and (instance_testing_size is not None):
+    if (splitting_type == 'fold') and (instance_testing_size is not None) and (instance_testing_size > 0):
         sys.exit("The cross validation method must not to be used for the splitting data to the training and testing set.")
     
     
@@ -69,6 +71,8 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             if instance_testing_size > len(data):
                 sys.exit("The specified instance_testing_size is too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
+            gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
+            
             if instance_testing_size > 0:
                 training_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
             else:
@@ -94,6 +98,8 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             if ((instance_testing_size + instance_validation_size)* number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_testing_size and instance_validation_size are too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
+            gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
+            
             if instance_testing_size > 0:
                 train_data = data.iloc[:-((instance_testing_size + gap) * number_of_spatial_units)].copy()
             else:
@@ -141,5 +147,5 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
     else:
         sys.exit("The splitting type must be 'instance' or 'fold'.")
         
-    return training_data, validation_data, testing_data
+    return training_data, validation_data, testing_data, gap_data
 
