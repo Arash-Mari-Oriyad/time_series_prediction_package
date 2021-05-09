@@ -12,9 +12,125 @@ from get_normal_target import get_normal_target
 from apply_performance_mode import apply_performance_mode
 from get_trivial_values import get_trivial_values
 
-def train_test(data, instance_testing_size, forecast_horizon, feature_or_covariate_set, history_length, model='knn', model_type='regression', 
-	model_parameters=None, input_scaler='logarithmic', output_scaler='logarithmic', performance_measures=['MAPE'], performance_mode='normal', 
-	performance_report=True, save_predictions=True, verbose=0):
+def train_test(
+		data, instance_testing_size, 
+		forecast_horizon, feature_or_covariate_set, 
+		history_length, model='knn', 
+		model_type='regression', model_parameters=None, 
+		input_scaler='logarithmic', output_scaler='logarithmic', 
+		performance_measures=['MAPE'], performance_mode='normal', 
+		performance_report=True, save_predictions=True, 
+		verbose=0):
+	
+	"""
+	Parameters:
+		data:	Pandas DataFrame
+			a preprocessed DataFrame to be used for training the model and making predictions on the test part
+		
+		instance_testing_size:	int or float
+			the size of testing instances
+		
+		forecast_horizon:	int
+			forecast horizon to gap consideration in data splitting process by the gap, we mean the number of temporal units
+			which are excluded from data to simulate the situation of real prediction in which we do not have access to the
+			information of forecast horizon-1 units before the time point of the target variable.
+
+		feature_or_covariate_set:	list<string>
+			a list of covariates or features which feature selection process will be based on them if historical data is provided, 
+			the input will be considered as a feature list, otherwise as a covariate list
+
+		history_length:	int
+			history length of the input "data", history length is just used for the reports in "train_test"
+
+		model:	string or callable or dict
+			string: one of the pre-defined model names 
+			function: a user-defined function
+			dict: pre-defined model names and corresponding hyper parameters
+			pre-defined model names: 'knn', 'nn' , 'gbm', 'glm'
+
+		model_type:	string
+
+		model_parameters:	list<int>
+
+		input_scaler:	string
+
+		output_scaler:	string
+
+		performance_measures:	list<string>
+			a list of performance measures that the user wants to calculate the errors on predictions of test dataset 
+		
+		performance_mode:	string
+
+		performance_report:	bool
+			if True, some tables containing a report on models and their corresponding errors (based on performance_measurements) 
+			will be saved in the same directory
+		
+		save_predictions:	bool
+			if True, the prediction values of trained models for training data and validation data through train_and_evaluate 
+			process will be saved in the same directory as your program is running as in ‘.csv’ format
+		
+		verbose:	int
+			the level of produced detailed logging information
+			available options:
+			0: no logging
+			1: only important information logging 
+			2: all details logging
+
+
+	Outputs:
+		model:	string or callable or dict
+			exactly same as the 'model' parameter
+
+		model_parameters:	list<int>
+	"""
+
+	################################ checking for TypeError and other possible mistakes in the inputs
+	if not(isinstance(data, pd.DataFrame)):
+		raise TypeError("Expected a pandas DataFrame for data.")
+
+	if not(isinstance(instance_testing_size, int) or isinstance(instance_testing_size, float)):
+		raise TypeError("Expected an integer or a float number for instance_testing_size.")
+	
+	if not(isinstance(forecast_horizon, int)):
+		raise TypeError("Expected an integer for forecast_horizon.")
+	
+	if not(isinstance(feature_or_covariate_set, list)):
+		raise TypeError("Expected a list of strings for feature_or_covariate_set.")
+	
+	if not(isinstance(history_length, int)):
+		raise TypeError("Expected an integer for history_length.")
+	
+	if not(isinstance(model, str) or callable(model) or isinstance(model, dict)):
+		raise TypeError("Expected a string or function or a dictionary of model parameters for model.")
+	
+	if not(isinstance(model_type, str)):
+		raise TypeError("Expected a string for model_type.")
+	
+	if not(isinstance(model_parameters, list)):
+		raise TypeError("Expected a list for model_parameters.")
+	
+	if not(isinstance(input_scaler, str)):
+		raise TypeError("Expected a string for input_scaler.")
+	
+	if not(isinstance(output_scaler, str)):
+		raise TypeError("Expected a string for output_scaler.")
+	
+	if not(isinstance(performance_measures, list)):
+		raise TypeError("Expected a list for performance_measures.")
+	
+	if not(isinstance(performance_mode, str)):
+		raise TypeError("Expected a string for performance_mode.")
+	
+	if not(isinstance(performance_report, bool)):
+		raise TypeError("Expected a bool variable for performance_report.")
+	
+	if not(isinstance(save_predictions, bool)) == False:
+		raise TypeError("Expected a bool variable for save_predictions.")
+	
+	if not(isinstance(verbose, int)):
+		raise TypeError("Expected an integer (0 or 1 or 2) for verbose.")
+	################################
+
 
 	# check if model is a string or function
 	model_name = ''
@@ -34,7 +150,7 @@ def train_test(data, instance_testing_size, forecast_horizon, feature_or_covaria
 	target_mode, target_granularity, granularity, processed_data = get_target_quantities(data=processed_data.copy())
 
 	# splitting data in the way is set for train_test
-	training_data, validation_data, testing_data, gap_data = split_data(
+	training_data, _, testing_data, gap_data = split_data(
 		data=processed_data.copy(), 
 		splitting_type='instance', 
 		instance_testing_size=instance_testing_size, 
@@ -60,12 +176,8 @@ def train_test(data, instance_testing_size, forecast_horizon, feature_or_covaria
 		output_scaler=output_scaler
 	)
 
-	# drop the columns ("Normal target", "spatial id", "temporal id") from data
-	training_data = training_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
-	testing_data = testing_data.drop(['Normal target', 'spatial id', 'temporal id'], axis=1)
-
 	# training model with processed data	
-	training_predictions, testing_predictions, trained_model = train_evaluate(
+	training_predictions, testing_predictions, _ = train_evaluate(
 		training_data=training_data.copy(), 
 		validation_data=testing_data.copy(), 
 		model=model, 
@@ -90,62 +202,62 @@ def train_test(data, instance_testing_size, forecast_horizon, feature_or_covaria
 	# checking for some files to exit which will be used in the next phases
 	test_process_backup_file_name = 'test_process_backup.csv'
 	if Path(test_process_backup_file_name).is_file() == False:
-		df = pd.DataFrame(columns=['spatial id', 'temporal id', 'Target', 'Normal target'])
+		df = pd.DataFrame(columns=['spatial id', 'temporal id', 'Target', 'Normal target', 'prediction'])
 		df.to_csv(test_process_backup_file_name, index=False)
 
 
 	# getting back previous points (useful for one-by-one method, also works for one-as-whole method)
-	previous_test_target = pd.read_csv(test_process_backup_file_name)
-	previous_testing_predictions = previous_test_target['Target'].tolist()
+	previous_test_points = pd.read_csv(test_process_backup_file_name)
+	previous_testing_predictions = previous_test_points['prediction'].tolist()
 
 	# append current point to previous points
-	test_target = test_target.append(previous_test_target, ignore_index=True)
-	testing_predictions = testing_predictions + previous_testing_predictions
+	test_target = test_target.append(previous_test_points[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True)
+	testing_predictions = list(testing_predictions) + previous_testing_predictions
 
-	# saving test_target into a backup file to be used in the next point
-	test_target.to_csv(test_process_backup_file_name, index=False)
+	# saving test_target+testing_predictions into a backup file to be used in the next point
+	df_for_backup = test_target.copy()
+	df_for_backup.insert(loc=len(df_for_backup.columns), column='prediction', value=testing_predictions)
+	df_for_backup.to_csv(test_process_backup_file_name, index=False)
 
 	# get normal data
 	training_target, test_target, training_prediction, test_prediction = get_normal_target(
 		training_target=training_target.append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
 		test_target=test_target.copy(), 
-		training_prediction=list(training_predictions), 
-		test_prediction=list(testing_predictions), 
+		training_prediction=list(training_predictions) + gap_data['Target'].tolist(), 
+		test_prediction=testing_predictions, 
 		target_mode=target_mode, 
 		target_granularity=target_granularity
 	)
 
 	# make copy of some data to be stores later
-	training_target_normal, test_target_normal, training_prediction_normal, test_prediction_normal = \
-		training_target.copy(), test_target.copy(), training_prediction.copy(), test_prediction.copy()
+	test_target_normal, test_prediction_normal = test_target.copy(), test_prediction.copy()
 
 	# including performance_mode
 	training_target, test_target, training_prediction, test_prediction = apply_performance_mode(
-		training_target=training_target.append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
+		training_target=training_target.copy().append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
 		test_target=test_target.copy(), 
-		training_prediction=training_prediction, 
+		training_prediction=list(training_prediction) + gap_data['Target'].tolist(), 
 		test_prediction=test_prediction, 
 		performance_mode=performance_mode
 	)
 
 	# computing trivial values for the test set
-	trivial_values = None
-	if any(item.lower() == 'mase' for item in performance_measures):
-		trivial_values = get_trivial_values(
-			train_true_values_df=training_target.copy(), 
-			validation_true_values_df=test_target.copy(), 
-			train_prediction=training_prediction, 
-			validation_prediction=test_prediction, 
-			forecast_horizon=forecast_horizon, 
-			granularity=granularity
-		)
+	_, _, _, testing_true_values, testing_predicted_values, testing_trivial_values = get_trivial_values(
+		train_true_values_df=training_target.copy().append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
+		validation_true_values_df=test_target.copy(), 
+		train_prediction=list(training_prediction) + gap_data['Target'].tolist(), 
+		validation_prediction=test_prediction, 
+		forecast_horizon=forecast_horizon, 
+		granularity=granularity
+	)
 
 	# computing performnace on test dataset
 	test_prediction_errors = performance(
-		true_values=test_target['Normal target'].values.tolist(), 
-		predicted_values=test_prediction, 
+		true_values=testing_true_values, 
+		predicted_values=testing_predicted_values, 
 		performance_measures=performance_measures, 
-		trivial_values=trivial_values, 
+		trivial_values=testing_trivial_values, 
+		model_type=model_type, 
 		labels=None, 
 		pos_label=None
 	)
