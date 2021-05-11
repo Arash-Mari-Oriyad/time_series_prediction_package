@@ -99,6 +99,7 @@ def predict_future(data: pd.DataFrame or str,
                            for column_name in data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
 
+    # for each spatial id
     if scenario:
         for futuristic_feature in futuristic_features:
             if scenario == 'max':
@@ -110,7 +111,6 @@ def predict_future(data: pd.DataFrame or str,
             else:
                 value = training_data[futuristic_feature].values[-1]
             testing_data[futuristic_feature].values[:] = value
-
     else:
         if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
             sys.exit("scenario is not provided and some futuristic features have null values.")
@@ -150,6 +150,7 @@ def predict_future(data: pd.DataFrame or str,
             target_granularity=target_granularity
         )
 
+    # ids from get_normal_target
     data_to_save = pd.DataFrame()
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids

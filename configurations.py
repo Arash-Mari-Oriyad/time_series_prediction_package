@@ -23,7 +23,7 @@ FEATURE_SELECTION_TYPES = ['covariate', 'feature']
 
 PRE_DEFINED_MODELS = ['nn', 'knn', 'glm', 'gbm']
 
-MODEL_TYPES = ['regression', 'deterministic-classification', 'probabilistic-classification']
+MODEL_TYPES = ['regression', 'classification']
 
 PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
 

@@ -133,7 +133,7 @@ def predict(data: list,
                for performance_mode_starts_with in configurations.PERFORMANCE_MODES_STARTS_WITH):
         sys.exit("performance_mode input is not valid.")
     # performance_measures input checking
-    if not isinstance(performance_measures, list):
+    if not (isinstance(performance_measures, list) and len(performance_measures) > 0):
         sys.exit("performance_measures input format is not valid.")
     for performance_measure in performance_measures:
         if performance_measure not in configurations.PERFORMANCE_MEASURES:
