@@ -1,4 +1,4 @@
-import pandas as pd
+import pandas as pd 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
@@ -68,6 +68,8 @@ def target_descale(scaled_data, base_data, scaler = 'logarithmic'):
     base_data : List of target variable values in train set before scaling
     scaler = 'logarithmic' or 'normalize' or 'standardize' or None
     '''
+    if scaler is None:
+        return scaled_data
     
     base_data = np.array(base_data).reshape(-1, 1)
     scaled_data = np.array(scaled_data).reshape(-1, 1)
@@ -85,6 +87,6 @@ def target_descale(scaled_data, base_data, scaler = 'logarithmic'):
         scaleObject.fit_transform(base_data)
         output_data = scaleObject.inverse_transform(scaled_data)
     else:
-        output_data = scaled_data
+        sys.exit("The target scaler is not valid.")
     
     return list(output_data.ravel())

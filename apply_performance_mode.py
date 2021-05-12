@@ -28,6 +28,9 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
     '''
     column_names_list = list(training_target.columns)
     
+    if performance_mode == 'normal':
+        return training_target, test_target, training_prediction, test_prediction
+        
     # decode performance mode to get the window size of the moving average
     if performance_mode.startswith('moving average'):
         if len(performance_mode.split(' + ')) > 1:
@@ -125,7 +128,7 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
         data = data.sort_values(by = ['temporal id', 'spatial id'])
         data = data.iloc[(window-1)*number_of_spatial_units:] # ?????????????????????? #
         
-    elif performance_mode != 'normal':
+    else:
         sys.exit("Specified performance_mode is not valid.")
         
     data = data.sort_values(by=['temporal id', 'spatial id'])

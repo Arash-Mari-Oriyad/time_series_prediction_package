@@ -179,11 +179,10 @@ def GBM_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     GradientBoostingclassifierObject = GradientBoostingClassifier(**parameters)
 
     GradientBoostingclassifierObject.fit(X_train, y_train.ravel())
-    y_prediction = GradientBoostingclassifierObject.predict(X_test)
-    y_prediction_train = GradientBoostingclassifierObject.predict(X_train)
+    y_prediction = GradientBoostingclassifierObject.predict_proba(X_test)
+    y_prediction_train = GradientBoostingclassifierObject.predict_proba(X_train)
 
-
-    return np.array(y_prediction).ravel(), np.array(y_prediction_train).ravel(), GradientBoostingclassifierObject
+    return y_prediction, y_prediction_train, GradientBoostingclassifierObject
 
 
 ##################################################### GLM: Generalized Linear Model Classifier
@@ -201,11 +200,11 @@ def GLM_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
     GLM_Model = LogisticRegression(**parameters)
     GLM_Model.fit(X_train, y_train.ravel())
-    y_prediction = GLM_Model.predict(X_test)
-    y_prediction_train = GLM_Model.predict(X_train)
+    y_prediction = GLM_Model.predict_proba(X_test)
+    y_prediction_train = GLM_Model.predict_proba(X_train)
     
 
-    return np.array(y_prediction).ravel(), np.array(y_prediction_train).ravel(), GLM_Model
+    return y_prediction, y_prediction_train, GLM_Model
 
 ######################################################### KNN: K-Nearest Neighbors Classifier
 def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
@@ -241,8 +240,8 @@ def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
         
     KNN_Model = KNeighborsClassifier(n_neighbors=K, **parameters)
     KNN_Model.fit(X_train, y_train.ravel())
-    y_prediction = KNN_Model.predict(X_test)
-    y_prediction_train = KNN_Model.predict(X_train)
+    y_prediction = KNN_Model.predict_proba(X_test)
+    y_prediction_train = KNN_Model.predict_proba(X_train)
 
     return y_prediction, y_prediction_train, KNN_Model
 
@@ -302,15 +301,13 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
                    epochs=parameters['epochs'], verbose=0)
     
     if parameters['output_activation'] == 'sigmoid':
-        y_prediction = (NeuralNetworkObject.predict(X_test) > 0.5).astype("int32")
-        y_prediction = encoder.inverse_transform(y_prediction.ravel())
-        y_prediction_train = (NeuralNetworkObject.predict(X_train) > 0.5).astype("int32")
-        y_prediction_train = encoder.inverse_transform(y_prediction_train.ravel())
+        y_prediction = NeuralNetworkObject.predict(X_test)
+        y_prediction = np.array([[1-(x[0]),x[0]] for x in y_prediction]).astype("float32")
+        y_prediction_train = NeuralNetworkObject.predict(X_train)
+        y_prediction_train = np.array([[1-(x[0]),x[0]] for x in y_prediction_train]).astype("float32")
         
     else:
-        y_prediction = np.argmax(NeuralNetworkObject.predict(X_test), axis=-1)
-        y_prediction = encoder.inverse_transform(y_prediction)
-        y_prediction_train = np.argmax(NeuralNetworkObject.predict(X_train), axis=-1)
-        y_prediction_train = encoder.inverse_transform(y_prediction_train)
+        y_prediction = NeuralNetworkObject.predict(X_test)
+        y_prediction_train = NeuralNetworkObject.predict(X_train)
     
-    return np.array(y_prediction).ravel(), np.array(y_prediction_train).ravel(), NeuralNetworkObject
+    return y_prediction, y_prediction_train, NeuralNetworkObject
