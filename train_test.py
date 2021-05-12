@@ -270,9 +270,7 @@ def train_test(
 		trivial_values=testing_trivial_values, 
 		model_type=model_type, 
 		num_params=number_of_parameters, 
-		labels=labels, 
-		pos_label=None
-	)
+		labels=labels)
 	
 	# saving predictions based on model_type
 	pred_file_name = 'prediction/test process/test prediction forecast horizon = %s.csv' % (forecast_horizon)
