@@ -1,10 +1,11 @@
 import pandas as pd
+import numpy as np
 
 from pathlib import Path
 from performance import performance
 from select_features import select_features
 from split_data import split_data
-from train_evaluate import train_evaluate
+from train_evaluate import inner_train_evaluate
 from scaling import data_scaling
 from scaling import target_descale
 from get_target_quantities import get_target_quantities
@@ -18,9 +19,9 @@ def train_test(
 		history_length, model='knn', 
 		model_type='regression', model_parameters=None, 
 		input_scaler='logarithmic', output_scaler='logarithmic', 
-		performance_measures=['MAPE'], performance_mode='normal', 
-		performance_report=True, save_predictions=True, 
-		verbose=0):
+		labels=None, performance_measures=['MAPE'], 
+		performance_mode='normal', performance_report=True, 
+		save_predictions=True, verbose=0):
 	
 	"""
 	Parameters:
@@ -77,7 +78,7 @@ def train_test(
 			2: all details logging
 
 
-	Outputs:
+	Returns:
 		model:	string or callable or dict
 			exactly same as the 'model' parameter
 
@@ -140,13 +141,22 @@ def train_test(
 			raise TypeError("Name of the user defined model matches the name of one of our predefined models.")
 	else:
 		model_name = model
-	
+
+	# find labels for classification problem
+	if labels == None:
+		if model_type == 'regression':	# just an empty list
+			labels = []
+		elif model_type == 'classification':	# unique values in 'Target' column of data
+			labels = data.Target.unique()
+			labels.sort()
+
 	# select features
 	processed_data = select_features(
 		data=data.copy(), 
 		ordered_covariates_or_features=feature_or_covariate_set
 	)
 
+	# get some information of the data
 	target_mode, target_granularity, granularity, processed_data = get_target_quantities(data=processed_data.copy())
 
 	# splitting data in the way is set for train_test
@@ -177,12 +187,13 @@ def train_test(
 	)
 
 	# training model with processed data	
-	training_predictions, testing_predictions, _ = train_evaluate(
+	training_predictions, testing_predictions, _, number_of_parameters = inner_train_evaluate(
 		training_data=training_data.copy(), 
 		validation_data=testing_data.copy(), 
 		model=model, 
 		model_type=model_type, 
 		model_parameters=model_parameters, 
+		labels=labels, 
 		verbose=verbose
 	)
 
@@ -234,18 +245,18 @@ def train_test(
 
 	# including performance_mode
 	training_target, test_target, training_prediction, test_prediction = apply_performance_mode(
-		training_target=training_target.copy().append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
+		training_target=training_target.copy(), 
 		test_target=test_target.copy(), 
-		training_prediction=list(training_prediction) + gap_data['Target'].tolist(), 
+		training_prediction=list(training_prediction), 
 		test_prediction=test_prediction, 
 		performance_mode=performance_mode
 	)
 
 	# computing trivial values for the test set
 	_, _, _, testing_true_values, testing_predicted_values, testing_trivial_values = get_trivial_values(
-		train_true_values_df=training_target.copy().append(gap_data[['spatial id', 'temporal id', 'Target', 'Normal target']], ignore_index=True), 
+		train_true_values_df=training_target.copy(), 
 		validation_true_values_df=test_target.copy(), 
-		train_prediction=list(training_prediction) + gap_data['Target'].tolist(), 
+		train_prediction=list(training_prediction), 
 		validation_prediction=test_prediction, 
 		forecast_horizon=forecast_horizon, 
 		granularity=granularity
@@ -258,22 +269,36 @@ def train_test(
 		performance_measures=performance_measures, 
 		trivial_values=testing_trivial_values, 
 		model_type=model_type, 
-		labels=None, 
+		num_params=number_of_parameters, 
+		labels=labels, 
 		pos_label=None
 	)
 	
-	# saving predictions
+	# saving predictions based on model_type
 	pred_file_name = 'prediction/test process/test prediction forecast horizon = %s.csv' % (forecast_horizon)
+	testing_predictions = np.array(testing_predictions)
+
 	if save_predictions == True:
-		df = pd.DataFrame()
-		df['real'] = test_target_normal['Normal target'].values.tolist()
-		df['prediction'] = list(test_prediction_normal)
-		df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
-		df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
-		df.insert(0, 'model name', model_name, True)
-		df.to_csv(pred_file_name, index=False)
+		if model_type == 'regression':
+			df = pd.DataFrame()
+			df['real'] = test_target_normal['Normal target'].values.tolist()
+			df['prediction'] = list(test_prediction_normal)
+			df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
+			df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
+			df.insert(0, 'model name', model_name, True)
+			df.to_csv(pred_file_name, index=False)
+		elif model_type == 'classification':
+			df = pd.DataFrame()
+			df['real'] = test_target_normal['Normal target'].values.tolist()
+			for i in range(len(labels)):
+				col_name = str(labels[i])
+				df[col_name] = testing_predictions[:, i]
+			df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
+			df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
+			df.insert(0, 'model name', model_name, True)
+			df.to_csv(pred_file_name, index=False)
 	
-	# saving performance
+	# saving performance (same approach for both regression and classification)
 	performance_file_name = 'performance/test process/test performance report forecast horizon = %s.csv' % (forecast_horizon)
 	if performance_report == True:
 		df_data = {
