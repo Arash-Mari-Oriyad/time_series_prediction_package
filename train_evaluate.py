@@ -27,7 +27,8 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
     train_predictions = None
     validation_predictions = None
     trained_model = None
-
+    
+    
     if type(training_data) == str:
         try:
             training_data = pd.read_csv(training_data)
@@ -60,48 +61,57 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
     present_labels.sort()
 
     if (type(model) == str) and (model in supported_models_name):
+        try:
+            if model == 'gbm':
 
-        if model == 'gbm':
-            
-            if model_type == 'classification':
-                validation_predictions, train_predictions, trained_model = GBM_CLASSIFIER(X_training, X_validation,
-                                                                                          Y_training, model_parameters,
-                                                                                          verbose)
-            if model_type == 'regression':
-                validation_predictions, train_predictions, trained_model = GBM_REGRESSOR(X_training, X_validation,
-                                                                                         Y_training, model_parameters,
-                                                                                         verbose)
-        elif model == 'glm':
-            
-            if model_type == 'classification':
-                validation_predictions, train_predictions, trained_model = GLM_CLASSIFIER(X_training, X_validation,
-                                                                                          Y_training, model_parameters,
-                                                                                          verbose)
-            if model_type == 'regression':
-                validation_predictions, train_predictions, trained_model = GLM_REGRESSOR(X_training, X_validation,
-                                                                                         Y_training, model_parameters,
-                                                                                         verbose)
-        elif model == 'knn':
-            
-            if model_type == 'classification':
-                validation_predictions, train_predictions, trained_model = KNN_CLASSIFIER(X_training, X_validation,
-                                                                                          Y_training, model_parameters,
-                                                                                          verbose)
-            if model_type == 'regression':
-                validation_predictions, train_predictions, trained_model = KNN_REGRESSOR(X_training, X_validation,
-                                                                                         Y_training, model_parameters,
-                                                                                         verbose)
-        elif model == 'nn':
-            
-            if model_type == 'classification':
-                validation_predictions, train_predictions, trained_model = NN_CLASSIFIER(X_training, X_validation,
-                                                                                          Y_training, model_parameters,
-                                                                                          verbose)
-            if model_type == 'regression':
-                validation_predictions, train_predictions, trained_model = NN_REGRESSOR(X_training, X_validation,
-                                                                                        Y_training, model_parameters,
-                                                                                        verbose)
+                if model_type == 'classification':
+                    validation_predictions, train_predictions, trained_model = GBM_CLASSIFIER(X_training, X_validation,
+                                                                                              Y_training, model_parameters,
+                                                                                              verbose)
+                if model_type == 'regression':
+                    validation_predictions, train_predictions, trained_model = GBM_REGRESSOR(X_training, X_validation,
+                                                                                             Y_training, model_parameters,
+                                                                                             verbose)
+            elif model == 'glm':
 
+                if model_type == 'classification':
+                    validation_predictions, train_predictions, trained_model = GLM_CLASSIFIER(X_training, X_validation,
+                                                                                              Y_training, model_parameters,
+                                                                                              verbose)
+                if model_type == 'regression':
+                    validation_predictions, train_predictions, trained_model = GLM_REGRESSOR(X_training, X_validation,
+                                                                                             Y_training, model_parameters,
+                                                                                             verbose)
+            elif model == 'knn':
+
+                if model_type == 'classification':
+                    validation_predictions, train_predictions, trained_model = KNN_CLASSIFIER(X_training, X_validation,
+                                                                                              Y_training, model_parameters,
+                                                                                              verbose)
+                if model_type == 'regression':
+                    validation_predictions, train_predictions, trained_model = KNN_REGRESSOR(X_training, X_validation,
+                                                                                             Y_training, model_parameters,
+                                                                                             verbose)
+            elif model == 'nn':
+
+                if model_type == 'classification':
+                    validation_predictions, train_predictions, trained_model = NN_CLASSIFIER(X_training, X_validation,
+                                                                                              Y_training, model_parameters,
+                                                                                              verbose)
+                if model_type == 'regression':
+                    validation_predictions, train_predictions, trained_model = NN_REGRESSOR(X_training, X_validation,
+                                                                                            Y_training, model_parameters,
+                                                                                            verbose)
+        except Exception as ex:
+            raise Exception("{0} model\n\t   {1}".format(model.upper(),ex))
+            
+        if (model == 'nn') and (not np.allclose(1, train_predictions.sum(axis=1))) or (not np.allclose(1, validation_predictions.sum(axis=1))):
+                 raise Exception(
+                     "The output predictions of the neural network model need to be probabilities "
+                     "i.e. they should sum up to 1.0 over classes. But the output does not match the condition. "
+                     "Revise the model parameters to solve the problem.")
+
+        
     elif callable(model):
         try:
             train_predictions, validation_predictions, trained_model = model(X_training, X_validation, Y_training)
@@ -126,6 +136,11 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
                                     
             if ((train_predictions.shape[1] != len(present_labels)) or (validation_predictions.shape[1] != len(present_labels))):
                 raise Exception("The probability predictions of the user-defined model are not compatible with the number of classes in the input data.")
+            
+            if (not np.allclose(1, train_predictions.sum(axis=1))) or (not np.allclose(1, validation_predictions.sum(axis=1))):
+                 raise Exception(
+                     "The output predictions of the user-defined model need to be probabilities "
+                     "i.e. they should sum up to 1.0 over classes")
 
     else:
         sys.exit(
@@ -141,7 +156,6 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
                                                                   all_labels = labels, present_labels = present_labels)
     
     return train_predictions, validation_predictions, trained_model
-
 
 
 #####################################################################################################

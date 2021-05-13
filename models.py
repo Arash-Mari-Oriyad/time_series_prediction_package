@@ -274,7 +274,7 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
     y_to_fit = dummy_y_train
     
-    if parameters['output_activation'] == 'sigmoid':
+    if (parameters['output_activation'] == 'sigmoid') and (number_of_classes == 2):
         output_neurons = 1
         y_to_fit = encoded_y_train.ravel()
     
@@ -300,7 +300,7 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
                    validation_split=parameters['validation_split'],
                    epochs=parameters['epochs'], verbose=0)
     
-    if parameters['output_activation'] == 'sigmoid':
+    if (parameters['output_activation'] == 'sigmoid') and (number_of_classes == 2):
         y_prediction = NeuralNetworkObject.predict(X_test)
         y_prediction = np.array([[1-(x[0]),x[0]] for x in y_prediction]).astype("float32")
         y_prediction_train = NeuralNetworkObject.predict(X_train)
