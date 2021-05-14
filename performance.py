@@ -25,40 +25,71 @@ def mase(true_values, predicted_values, trivial_values):
 
 # ROC AUC for binary and multiclass classification
 def auc(true_values, y_score, labels=None):
-	# check if the labels are related to binary classification or not
-	binary_classification = (len(labels) == 1 or len(labels) == 2)
+	# detecting how many classes the classification problem have
+	number_of_classes = len(labels)
 
-	if binary_classification == True:
+	if number_of_classes == 1 or number_of_classes == 2:	# binary classification
 		auc = metrics.roc_auc_score(
 			y_true=true_values, 
 			y_score=y_score[:, 1], 
 			labels=labels
 		)
-	else:
-		auc = metrics.roc_auc_score(
-			y_true=true_values, 
-			y_score=y_score, 
-			multi_class='ovo', 
-			labels=labels
-		)
 
-	# Data to plot roc curve
-	false_positive_rate, true_positive_rate, _ = metrics.roc_curve(true_values, y_score)
+		# Data to plot roc curve
+		false_positive_rate, true_positive_rate, _ = metrics.roc_curve(true_values, y_score[:, 1])
+		
+		# plot roc curve
+		plt.figure(dpi=100)
+		plt.axis('scaled')
+		plt.xlim([0, 1])
+		plt.ylim([0, 1])
+		plt.title("AUC & ROC Curve")
+		plt.plot(false_positive_rate, true_positive_rate, 'g')
+		plt.fill_between(false_positive_rate, true_positive_rate, facecolor='lightgreen', alpha=0.7)
+		plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
+		plt.xlabel("False Positive Rate")
+		plt.ylabel("True Positive Rate")
+		plt.show()
 
-	# plot roc curve
-	plt.figure(dpi=100)
-	plt.axis('scaled')
-	plt.xlim([0, 1])
-	plt.ylim([0, 1])
-	plt.title("AUC & ROC Curve")
-	plt.plot(false_positive_rate, true_positive_rate, 'g')
-	plt.fill_between(false_positive_rate, true_positive_rate, facecolor='lightgreen', alpha=0.7)
-	plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
-	plt.xlabel("False Positive Rate")
-	plt.ylabel("True Positive Rate")
-	plt.show()
+		return auc
+	
+	else:	# non-binary classification
+		# labelize the true_values to be usable in 'precision_recall_curve' from 'sklearn.metrics'
+		true_values = label_binarize(true_values, classes=labels)
 
-	return auc
+		auc = 0
+		false_positives = dict()
+		true_positives = dict()
+
+		for i in range(number_of_classes):
+			# Data to plot precision - recall curve
+			false_positives[i], true_positives[i], _ = metrics.roc_curve(true_values[:, i], y_score[:, i])
+			
+			auc += metrics.roc_auc_score(
+				y_true=true_values[:, i], 
+				y_score=y_score[:, i], 
+				multi_class='ovo', 
+				labels=labels
+			)
+
+		# the final auc value is mean of auc between all classes
+		auc /= (i+1)
+
+		# plot roc curve
+		plt.figure(dpi=100)
+		plt.axis('scaled')
+		plt.xlim([0, 1])
+		plt.ylim([0, 1])
+		plt.title("AUC & ROC Curve")
+		for i in range(number_of_classes):
+			plt.plot(false_positives[i], true_positives[i], color='g', label='class {}'.format(labels[i]))
+			plt.fill_between(false_positives[i], true_positives[i], facecolor='lightgreen', alpha=0.7)
+		plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
+		plt.xlabel("False Positive Rate")
+		plt.ylabel("True Positive Rate")
+		plt.show()
+
+		return auc
 
 def aupr(true_values, probas_pred, labels):
 	# detecting how many classes the classification problem have
@@ -101,7 +132,7 @@ def aupr(true_values, probas_pred, labels):
 	# binary classification
 	else:
 		# Data to plot precision - recall curve
-		precision, recall, _ = metrics.precision_recall_curve(true_values, probas_pred)
+		precision, recall, _ = metrics.precision_recall_curve(true_values, probas_pred[:,1], pos_label=labels[1])
 		# Use AUC function to calculate the area under the curve of precision recall curve
 		auc_precision_recall = metrics.auc(recall, precision)
 
@@ -148,6 +179,10 @@ def bic_classification(y_true, y_pred, k):
 	bic = k*log(n) - 2*log(mse_error)
 	return bic
 
+# log_loss
+def likelihood(y_true, y_pred, labels):
+	return (metrics.log_loss(y_true=y_true, y_pred=y_pred, labels=labels))
+
 def performance(
 		true_values, predicted_values, 
 		performance_measures=['MAPE'], trivial_values=[], 
@@ -183,10 +218,12 @@ def performance(
 	
 	errors = []
 
+	# converting inputs to arrays
 	true_values = np.asarray(true_values)
 	predicted_values = np.asarray(predicted_values)
 	trivial_values = np.asarray(trivial_values)
 
+	# moving on performance_measures and calculating errors
 	for error_type in performance_measures:
 		if error_type.lower() == 'mae':
 			errors.append(mae(true_values, predicted_values))
@@ -203,14 +240,22 @@ def performance(
 		elif error_type.lower() == 'aupr':
 			errors.append(aupr(true_values, predicted_values, labels))
 		elif error_type.lower() == 'aic':
-			if model_type == 'regression':
-				errors.append(aic_regression(true_values, predicted_values, num_params))
-			elif model_type == 'classification':
-				errors.append(aic_classification(true_values, predicted_values, num_params))
+			if num_params == None:	# if num_params is None, then None value for AIC will be returned
+				errors.append(None)
+			else:
+				if model_type == 'regression':
+					errors.append(aic_regression(true_values, predicted_values, num_params))
+				elif model_type == 'classification':
+					errors.append(aic_classification(true_values, predicted_values, num_params))
 		elif error_type.lower() == 'bic':
-			if model_type == 'regression':
-				errors.append(bic_regression(true_values, predicted_values, num_params))
-			elif model_type == 'classification':
-				errors.append(bic_classification(true_values, predicted_values, num_params))
+			if num_params == None:	# if num_params is None, then None value for BIC will be returned
+				errors.append(None)
+			else:
+				if model_type == 'regression':
+					errors.append(bic_regression(true_values, predicted_values, num_params))
+				elif model_type == 'classification':
+					errors.append(bic_classification(true_values, predicted_values, num_params))
+		elif error_type.lower() == 'likelihood':
+			errors.append(likelihood(true_values, predicted_values, labels))
 
 	return errors
