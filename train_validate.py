@@ -175,6 +175,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if type(models) != list:
         sys.exit("The models must be of type list.")
         
+    number_of_user_defined_models = 0
+    
     for item in models:
         
         # if the item is the dictionary of model name and its parameters
@@ -211,11 +213,12 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
         # if the item is user defined function
         elif callable(item):
-            models_list.append(item)
             if item.__name__ in supported_models_name:
                 sys.exit("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
+            models_list.append(item)
             models_name_list.append(item.__name__)
             models_parameter_list.append(None)
+            number_of_user_defined_models += 1
                         
         else:
             print("\nWarning: The items in the models list must be of type string, dict or callable. The incompatible cases will be ignored.\n")
@@ -263,13 +266,13 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 performance_benchmark = 'MAE'
                 print("\nWarning: The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
     
-    if len(list(set(models_name_list)-set(supported_models_name)))>0:
+    if number_of_user_defined_models>0:
         if (performance_benchmark == 'AIC') or (performance_benchmark == 'BIC'):
             if model_type == 'classification':
-                performance_benchmark == 'AUC'
+                performance_benchmark = 'AUC'
                 print("\nWarning: The 'AIC' and 'BIC' measures can not be measured for user_defined models. Thus the performance_benchmark will be set to 'AUC'.\n")
             elif model_type == 'regression':
-                performance_benchmark == 'MAE'
+                performance_benchmark = 'MAE'
                 print("\nWarning: The 'AIC' and 'BIC' measures can not be measured for user_defined models. Thus the performance_benchmark will be set to 'MAE'.\n")
     
     # set the appropriate min error based on performance_benchmark measure
@@ -282,7 +285,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
     if performance_benchmark not in performance_measures:
         performance_measures.append(performance_benchmark)
-        
+    
     ############## model_type input
     
     if model_type == 'classification':
@@ -292,14 +295,6 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         labels = []
     else:
         sys.exit("The specified model_type is not valid. The supported values are 'regression' and 'classification'.")
-        
-    if (len(labels) != 2) and ('AUPR' in performance_measures):
-        performance_measures.remove('AUPR')
-        print("\nWarning: The 'AUPR' can only be measured for binary classification. But the input data has a multiclass target.\n")
-    
-    if (len(labels) != 2) and (performance_benchmark == 'AUPR'):
-        print("\nWarning: The 'AUPR' can only be measured for binary classification. But the input data has a multiclass target. Thus the performance_benchmark will be set to 'AUC'.\n")
-        performance_benchmark == 'AUC'
     
     if len(performance_measures) < 1:
         sys.exit("No valid measure is specified.")
@@ -378,7 +373,6 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         split_data_splitting_type = 'fold'
     else:
         split_data_splitting_type = 'instance'
-        
         
     #################################################### initializing
         
