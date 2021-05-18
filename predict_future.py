@@ -24,12 +24,12 @@ def predict_future(data: pd.DataFrame or str,
                    save_predictions: bool,
                    verbose: int):
     # input checking
-    # data input_checking
+    # data input checking
     if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
-        sys.exit("data input format is not valid.")
+        sys.exit("The input 'data' must be a dataframe or an address to a DataFrame.")
     # future_data input checking
     if not (isinstance(future_data, pd.DataFrame) or isinstance(future_data, str)):
-        sys.exit("future_data input format is not valid.")
+        sys.exit("The input 'future_data' must be a DataFrame or an address to a dataframe.")
     # forecast_horizon input checking
     if not (isinstance(forecast_horizon, int) and forecast_horizon >= 1):
         sys.exit("forecast_horizon is not valid.")
@@ -73,7 +73,7 @@ def predict_future(data: pd.DataFrame or str,
     elif isinstance(data, pd.DataFrame):
         pass
     else:
-        sys.exit("data input format is not valid.")
+        sys.exit("The input 'data' must be a dataframe or an address to a DataFrame.")
     if isinstance(future_data, str):
         try:
             future_data = pd.read_csv(future_data)
@@ -82,13 +82,10 @@ def predict_future(data: pd.DataFrame or str,
     elif isinstance(future_data, pd.DataFrame):
         pass
     else:
-        sys.exit("data input format is not valid.")
+        sys.exit("The input 'future_data' must be a DataFrame or an address to a dataframe.")
 
     target_mode, target_granularity, granularity, training_data = get_target_quantities(data=data.copy())
     _, _, _, testing_data = get_target_quantities(data=future_data.copy())
-
-    testing_data_spatial_ids = testing_data['spatial id'].copy()
-    testing_data_temporal_ids = testing_data['temporal id'].copy()
 
     training_data = select_features(data=training_data.copy(),
                                     ordered_covariates_or_features=feature_or_covariate_set)
@@ -150,7 +147,9 @@ def predict_future(data: pd.DataFrame or str,
             target_granularity=target_granularity
         )
 
-    # ids from get_normal_target
+    testing_data_spatial_ids = normal_testing_target['spatial id'].copy()
+    testing_data_temporal_ids = normal_testing_target['temporal id'].copy()
+
     data_to_save = pd.DataFrame()
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
