@@ -35,8 +35,9 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
     
     gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
     
-    if (splitting_type == 'fold') and (instance_testing_size is not None) and (instance_testing_size > 0):
-        sys.exit("The cross validation method must not to be used for the splitting data to the training and testing set.")
+    if (splitting_type == 'fold') and (type(instance_testing_size) in [int,float]):
+        if (instance_testing_size > 0):
+            sys.exit("The cross validation method must not to be used for the splitting data to the training and testing set.")
     
     
     number_of_spatial_units = len(data['spatial id'].unique())
@@ -68,7 +69,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
                 
                 
         if (instance_testing_size is not None) and (instance_validation_size is None):
-            if instance_testing_size > len(data):
+            if (instance_testing_size*number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_testing_size is too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
             gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
@@ -81,7 +82,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
                 print("The splitting of the data is running. The training set includes {0}, and the testing set includes {1} instances.\n".format(len(training_data),len(testing_data)))
         
         elif (instance_testing_size is None) and (instance_validation_size is not None):
-            if (instance_validation_size* number_of_spatial_units) > len(data):
+            if (instance_validation_size*number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_validation_size is too large for input data.")
             # shuffling the temporal ids in the data for random partitioning
             if instance_random_partitioning == True:
@@ -95,7 +96,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
                 print("The splitting of the data is running. The training set includes {0}, and the validation set includes {1} instances.\n".format(len(training_data),len(validation_data)))
         
         elif (instance_testing_size is not None) and (instance_validation_size is not None):
-            if ((instance_testing_size + instance_validation_size)* number_of_spatial_units) > len(data):
+            if ((instance_testing_size + instance_validation_size)*number_of_spatial_units) > len(data):
                 sys.exit("The specified instance_testing_size and instance_validation_size are too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
             gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
@@ -142,7 +143,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             if iteration == fold_number:
                 break
         if verbose > 0:
-            print("\nThe splitting of the data is running. The validation set is fold number {0} of the total of {1} folds. Each fold includes {2} instances.\n".format(fold_number, fold_total_number, len(validation_fold_temporal_units)))
+            print("\nThe splitting of the data is running. The validation set is fold number {0} of the total of {1} folds. Each fold includes {2} instances.\n".format(fold_number, fold_total_number, (len(validation_fold_temporal_units)*number_of_spatial_units)))
         
     else:
         sys.exit("The splitting type must be 'instance' or 'fold'.")

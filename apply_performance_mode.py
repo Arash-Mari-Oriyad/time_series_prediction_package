@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 def apply_performance_mode(training_target, test_target, training_prediction, test_prediction, performance_mode):
     
     '''
@@ -126,7 +129,7 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
         data = pd.merge(data, moving_avg_target_df, how = 'left')
         
         data = data.sort_values(by = ['temporal id', 'spatial id'])
-        data = data.iloc[(window-1)*number_of_spatial_units:] # ?????????????????????? #
+        # data = data.iloc[(window-1)*number_of_spatial_units:] # ?????????????????????? #
         
     else:
         sys.exit("Specified performance_mode is not valid.")
@@ -138,13 +141,13 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
     if (len(test_set) < 1) and (performance_mode == 'moving average'):
         sys.exit("The number of remaining instances in the test set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process)")
     if (len(training_set) < 1) and (performance_mode == 'moving average'):
-        print("\nWarning: The number of remaining instances in the training set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process).\n")
+        sys.exit("The number of remaining instances in the training set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process).")
 
     training_prediction = list(training_set['prediction'])
     test_prediction = list(test_set['prediction'])
 
-    training_target = training_set.drop(['type','prediction'], axis = 1)
-    test_target = test_set.drop(['type','prediction'], axis = 1)
+    training_target = training_set.drop(['type','prediction','train_real_test_prediction'], axis = 1)
+    test_target = test_set.drop(['type','prediction','train_real_test_prediction'], axis = 1)
     
     training_target = training_target[column_names_list]
     test_target = test_target[column_names_list]

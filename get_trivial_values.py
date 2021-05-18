@@ -1,3 +1,5 @@
+import numpy as np
+
 def get_trivial_values(train_true_values_df, validation_true_values_df, train_prediction, validation_prediction, forecast_horizon, granularity):
     
     '''
@@ -27,6 +29,7 @@ def get_trivial_values(train_true_values_df, validation_true_values_df, train_pr
     validation_true_values_df.loc[:,('prediction')] = validation_prediction
     number_of_spatial_units = len(train_true_values_df['spatial id'].unique())
     train_true_values_df = train_true_values_df.sort_values(by = ['temporal id', 'spatial id'])
+    validation_true_values_df = validation_true_values_df.sort_values(by = ['temporal id', 'spatial id'])
     accessible_train_df = train_true_values_df.copy().iloc[(forecast_horizon * granularity * number_of_spatial_units):,:]
     train_true_values = list(np.array(accessible_train_df['Normal target']).reshape(-1))
     train_predicted_values = list(np.array(accessible_train_df['prediction']).reshape(-1))

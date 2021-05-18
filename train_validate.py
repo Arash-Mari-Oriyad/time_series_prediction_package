@@ -41,10 +41,12 @@ def report_performance(errors_dict, max_history, ordered_covariates_or_features,
                 # a format 'temporal covariate x' or 'spatial covariate x'
                 for index in feature_sets_indices[history-1][feature_set_number]:
                     feature_original_name = ordered_covariates_or_features[history-1][index]
+                    if feature_original_name.endswith(' t+'):
+                        feature_original_name = feature_original_name.split(' t+')[0]
                     feature_sets[feature_set_number].append(feature_original_name)
 
             temp = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + list(performance_measures))
-            temp.loc[:,('feature or covariate set')] = list([feature_sets[feature_set_number] for feature_set_number in range(len(feature_sets_indices[history-1]))])
+            temp.loc[:,('feature or covariate set')] = list([' , '.join(feature_sets[feature_set_number]) for feature_set_number in range(len(feature_sets_indices[history-1]))])
             temp.loc[:,('model name')] = model_name
             temp.loc[:,('history length')] = history
             
@@ -61,6 +63,7 @@ def report_performance(errors_dict, max_history, ordered_covariates_or_features,
         os.makedirs(address)
     output_data_frame.to_csv('{0}{1} performance report forecast horizon = {2}, T = {3}.csv'.format(address, report_type, forecast_horizon, data_temporal_size), index = False)
 
+
 #############################################################
 
 def parallel_run(prediction_arguments):
@@ -75,7 +78,7 @@ def parallel_run(prediction_arguments):
     
 
 
-def save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
+def save_prediction_data_frame(models_name_list, target_real_values, fold_validation_predictions,
                                fold_training_predictions, models_best_history_length, models_best_feature_set_number,
                                forecast_horizon, data_temporal_size, prediction_type, model_type, labels):
     
@@ -136,7 +139,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                    fold_total_number = 5, instance_random_partitioning = False,
                    forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
                    performance_measures = None, performance_benchmark = None, performance_mode = 'normal', input_scaler = None, output_scaler = None,
-                   labels = None, performance_report = True, save_predictions = True, verbose = 1):
+                   labels = None, performance_report = True, save_predictions = True, verbose = 0):
     
     
     supported_models_name = ['nn', 'knn', 'glm', 'gbm']
@@ -231,9 +234,16 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if (type(performance_measures) != list) and (performance_measures is not None):
         sys.exit("The performance_measures must be of type list.")
         
+    zero_encounter_flag = 0
+    for history in range(1,max_history+1):
+        data = data_list[history-1].copy()
+        if len(data[data['Target']==0]) > 0: zero_encounter_flag = 1
+        
     if performance_measures is None:
         if model_type == 'regression':
-            performance_measures = ['MAPE']
+            if zero_encounter_flag == 0:
+                performance_measures = ['MAPE']
+            else: performance_measures = ['MAE']
         else:
             performance_measures = ['AUC']
         
@@ -245,36 +255,74 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     if (splitting_type == 'cross-validation') and ('MASE' in performance_measures):
         performance_measures.remove('MASE')
-        print("\nWarning: In cross-validation splitting mode, the MASE measure could not be calculated.\n")
+        print("\nWarning: The 'MASE' measure cannot be measured in cross-validation splitting mode.\n")
+
+    if (model_type == 'regression') and (any([item in ['likelihood', 'AUC', 'AUPR'] for item in performance_measures])):
+        performance_measures = [item for item in performance_measures if item not in ['likelihood', 'AUC', 'AUPR']]
+        print("\nWarning: Some of the measures in the performance_measures can not be measured for {0} task and will be ignored.\n".format(model_type))
+    
+    if (model_type == 'classification') and (any([item in ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score'] for item in performance_measures])):
+        performance_measures = [item for item in performance_measures if item not in ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']]
+        print("\nWarning: Some of the measures in the performance_measures can not be measured for {0} task and will be ignored.\n".format(model_type))
+    
     if len(performance_measures) < 1:
         sys.exit("No valid measure is specified.")
         
     ############## performance_benchmark input
     
+    ## checking validity of performance_benchmark
+    
     if (performance_benchmark not in supported_performance_measures) or (performance_benchmark is None):
-        if performance_benchmark is not None:
-            print("\nWarning: The specified performance_benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']\nThe incompatible cases will be ignored and replaced with 'MAPE'.\n")
         if model_type == 'regression':
-            performance_benchmark = 'MAPE'
+            if zero_encounter_flag == 0:
+                performance_benchmark = 'MAPE'
+            else:
+                performance_benchmark = 'MAE'
         else:
             performance_benchmark = 'AUC'
-        
-    # checking validity of performance_benchmark
-    for history in range(1,max_history+1):
-        data = data_list[history-1].copy()
-        if (len(data[data['Target']==0]) > 0) and (performance_benchmark == 'MAPE'):
-                performance_benchmark = 'MAE'
-                print("\nWarning: The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
+        if performance_benchmark is not None:
+            print("\nWarning: The specified performance_benchmark must be one of the supported performance measures: ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']\nThe incompatible cases will be ignored and replaced with '{0}'.\n".format(performance_benchmark))
+            
+    if (performance_benchmark in ['likelihood', 'AUC', 'AUPR']) and (model_type == 'regression'): 
+        if zero_encounter_flag == 0:
+            performance_benchmark = 'MAPE'
+        else:
+            performance_benchmark = 'MAE'
+        print("\nWarning: The specified performance_benchmark can not be measured for regression models. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
+    
+    if (performance_benchmark in ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score']) and (model_type == 'classification'):
+        performance_benchmark = 'AUC'
+        print("\nWarning: The specified performance_benchmark can not be measured for classification models. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
+            
+    if (performance_benchmark == 'MAPE') and (zero_encounter_flag == 1):
+        performance_benchmark = 'MAE'
+        print("\nWarning: The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
     
     if number_of_user_defined_models>0:
         if (performance_benchmark == 'AIC') or (performance_benchmark == 'BIC'):
             if model_type == 'classification':
                 performance_benchmark = 'AUC'
-                print("\nWarning: The 'AIC' and 'BIC' measures can not be measured for user_defined models. Thus the performance_benchmark will be set to 'AUC'.\n")
             elif model_type == 'regression':
-                performance_benchmark = 'MAE'
-                print("\nWarning: The 'AIC' and 'BIC' measures can not be measured for user_defined models. Thus the performance_benchmark will be set to 'MAE'.\n")
+                if zero_encounter_flag == 0:
+                    performance_benchmark = 'MAPE'
+                else:
+                    performance_benchmark = 'MAE'
+            print("\nWarning: The 'AIC' and 'BIC' measures can not be measured for user_defined models. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
     
+    if (splitting_type == 'cross-validation') and (performance_benchmark == 'MASE'):
+        if zero_encounter_flag == 0:
+            performance_benchmark = 'MAPE'
+        else:
+            performance_benchmark = 'MAE'
+        print("\nWarning: The 'MASE' measure cannot be measured in cross-validation splitting mode. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
+
+    if (splitting_type != 'cross-validation') and (instance_random_partitioning == True) and (performance_benchmark == 'MASE'):
+        if zero_encounter_flag == 0:
+            performance_benchmark = 'MAPE'
+        else:
+            performance_benchmark = 'MAE'
+        print("\nWarning: The 'MASE' measure cannot be measured in random partitioning mode. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
+        
     # set the appropriate min error based on performance_benchmark measure
     if performance_benchmark in ['MAE', 'MAPE', 'MASE', 'MSE', 'AIC', 'BIC', 'likelihood']:
         overall_min_validation_error = float('Inf')
@@ -291,13 +339,20 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if model_type == 'classification':
         labels = list(data_list[0]['Normal target'].unique())
         labels.sort()
+        if performance_mode != 'normal':
+            if performance_mode is not None:
+                print("\nWarning: The 'cumulative' or 'moving average' performance_mode can not be used for the classification.")
+            performance_mode = 'normal'
+        if output_scaler is not None:
+            output_scaler = None
+            print("\nWarning: Target scaling can not be performed for the classification.")
+        if target_mode != 'normal':
+            target_mode = 'normal'
     elif model_type == 'regression':
         labels = []
     else:
         sys.exit("The specified model_type is not valid. The supported values are 'regression' and 'classification'.")
     
-    if len(performance_measures) < 1:
-        sys.exit("No valid measure is specified.")
     
     ############## ordered_covariates_or_features and feature_sets_indices
 
@@ -378,9 +433,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
     models_best_history_length = {model_name : None for model_name in models_name_list} # best_history_length for each model
     models_best_feature_set_number = {model_name : None for model_name in models_name_list} # index of best_feature_set in feature_set_indices for each model
-    # models_best_trained_model = {model_name : None for model_name in models_name_list} # trained model with best history and feature set
     best_model = None # overall best model
-    
         
     ####### the outputs of running the models 
     fold_training_predictions = {model_name : {} for model_name in models_name_list} # train prediction result for each fold
@@ -389,7 +442,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     performance_fold_training_predictions = {model_name : {} for model_name in models_name_list} # train prediction result for each fold modified with performance_mode to measure performance
     performance_fold_validation_predictions = {model_name : {} for model_name in models_name_list} # validation prediction result for each fold modified with performance_mode to measure performance
     
-    number_of_parameters = {model_name : {} for model_name in models_name_list} # number of parameters of the trained model on each fold
+    number_of_parameters = {model_name : {} for model_name in models_name_list} # number of parameters of the trained model on each fold (needed for 'AIC' and 'BIC')
     
     # training and validation target real values for different history lengths and fold number
     target_real_values = {'training':{},'validation':{}}
@@ -409,7 +462,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     for history in range(1,max_history+1):
         
-        print("\n"+"-"*55+"\nValidation process is running for history length = {0}.\n".format(history)+"-"*55+"\n")
+        if verbose>0:
+            print("\n"+"-"*55+"\nValidation process is running for history length = {0}.\n".format(history)+"-"*55+"\n")
         
         # get the data with specific history length
         data = data_list[history-1].copy()
@@ -447,18 +501,19 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                                   splitting_type = split_data_splitting_type, instance_random_partitioning = instance_random_partitioning, 
                                                   granularity = granularity, verbose = 0)
                     
-                    if (model_parameters is not None) and ('n_neighbors' in model_parameters.keys()) and (type(model_parameters['n_neighbors']) == int):
-                        if (model_parameters['n_neighbors']<len(training_data)) and (knn_alert_flag == 0):
-                            print("\nWarning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
-                            print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]\n")
-                            knn_alert_flag = 1
+                    if model_parameters is not None:
+                        if 'n_neighbors' in model_parameters.keys():
+                            if type(model_parameters['n_neighbors']) == int:
+                                if (model_parameters['n_neighbors']>len(training_data)) and (knn_alert_flag == 0):
+                                    print("\nWarning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
+                                    print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]\n")
+                                    knn_alert_flag = 1
                     
                     # saving the target real values of each fold for data with different history lengths to use in
                     # calculation of performance and saving real and predicted target values in csv files
-                    needed_columns = ['spatial id', 'temporal id', 'Target']
-                    if 'Normal target' in training_data.columns:
-                        needed_columns = needed_columns + ['Normal target']
+                    needed_columns = ['spatial id', 'temporal id', 'Target', 'Normal target']
                     
+                    # the target real values dataframe is copied for each combination of fold_number, history, and feature_set_number
                     for feature_set_number in range(len(feature_sets_indices[history-1])):
                         target_real_values['training'][(fold_number, history, feature_set_number)] = training_data[needed_columns]
                         target_real_values['validation'][(fold_number, history, feature_set_number)] = validation_data[needed_columns]
@@ -553,23 +608,20 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                 validation_prediction = performance_fold_validation_predictions[model_name][(fold_number, history, feature_set_number)], 
                                 forecast_horizon = forecast_horizon, granularity = granularity)
 
-                        
-                        if model_type == 'regression': performance_model_type = 'regression'
-                        else: performance_model_type = 'classification'
 
                         
                         fold_validation_error[fold_number][measure] = performance(true_values = validation_true_values,
                                                                                   predicted_values = validation_predicted_values, 
                                                                                   performance_measures = list([measure]), 
                                                                                   trivial_values = validation_trivial_values,
-                                                                                  model_type = performance_model_type,
+                                                                                  model_type = model_type,
                                                                                   num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
                                                                                   labels = labels)
                         fold_training_error[fold_number][measure] = performance(true_values = train_true_values,
                                                                                   predicted_values = train_predicted_values,
                                                                                   performance_measures = list([measure]),
                                                                                   trivial_values = train_trivial_values,
-                                                                                  model_type = performance_model_type,
+                                                                                  model_type = model_type,
                                                                                   num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
                                                                                   labels = labels)
             
@@ -609,10 +661,10 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     if (save_predictions == True) and (fold_total_number == 1): # if cross validation mode is on, predictions are not saved
         
-        save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
+        save_prediction_data_frame(models_name_list, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
                                    forecast_horizon, number_of_temporal_units,'training', model_type, labels)
-        save_prediction_data_frame(models_name_list, fold_total_number, target_real_values, fold_validation_predictions,
+        save_prediction_data_frame(models_name_list, target_real_values, fold_validation_predictions,
                                    fold_training_predictions, models_best_history_length, models_best_feature_set_number,
                                    forecast_horizon, number_of_temporal_units,'validation', model_type, labels)
         

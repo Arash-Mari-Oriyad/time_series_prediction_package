@@ -11,7 +11,7 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
     if input_scaler is not None:
         
         columns = list(train_data.columns)
-        features = [column for column in columns if column not in ['spatial id','temporal id','Target']]
+        features = [column for column in columns if column not in ['spatial id','temporal id','Target','Normal target']]
         train_data_features = train_data[features]
         test_data_features = test_data[features]
         
@@ -32,8 +32,8 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
             train_data_features = scaleObject.transform(train_data_features)
             test_data_features = scaleObject.transform(test_data_features)
             
-            test_data = pd.concat([test_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(test_data_features, columns = features).reset_index(drop = True)], axis=1)
-            train_data = pd.concat([train_data[['spatial id', 'temporal id', 'Target']].reset_index(drop = True), pd.DataFrame(train_data_features, columns = features).reset_index(drop = True)], axis=1)
+            test_data = pd.concat([test_data[['spatial id', 'temporal id', 'Target','Normal target']].reset_index(drop = True), pd.DataFrame(test_data_features, columns = features).reset_index(drop = True)], axis=1)
+            train_data = pd.concat([train_data[['spatial id', 'temporal id', 'Target','Normal target']].reset_index(drop = True), pd.DataFrame(train_data_features, columns = features).reset_index(drop = True)], axis=1)
         
         
     if output_scaler is not None:

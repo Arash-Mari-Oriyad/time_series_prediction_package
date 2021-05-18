@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from sklearn.experimental import enable_hist_gradient_boosting  # noqa
+from sklearn.experimental import enable_hist_gradient_boosting
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
@@ -93,9 +93,14 @@ def KNN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
                 parameters[key] = user_params[key]
                 
     # if user does not specify the K parameter or specified value is too large, the best k will be obtained using a grid search
-    if (user_params is not None) and ('n_neighbors' in user_params.keys()) and (user_params['n_neighbors']<len(X_train)):
-            K = user_params['n_neighbors']
-    else:
+    valid_k_flag = 0
+    if user_params is not None:
+        if ('n_neighbors' in user_params.keys()):
+            if (user_params['n_neighbors']<len(X_train)):
+                K = user_params['n_neighbors']
+                valid_k_flag = 1
+                
+    if valid_k_flag == 0:
         KNeighborsRegressorObject = KNeighborsRegressor()
         # Grid search over different Ks to choose the best one
         neighbors=np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200])
@@ -218,9 +223,14 @@ def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
                 parameters[key] = user_params[key]
                 
     # if user does not specify the K parameter or specified value is too large, the best k will be obtained using a grid search
-    if (user_params is not None) and ('n_neighbors' in user_params.keys()) and (user_params['n_neighbors']<len(X_train)):
-            K = user_params['n_neighbors']
-    else:
+    valid_k_flag = 0
+    if user_params is not None:
+        if ('n_neighbors' in user_params.keys()):
+            if (user_params['n_neighbors']<len(X_train)):
+                K = user_params['n_neighbors']
+                valid_k_flag = 1
+                
+    if valid_k_flag == 0:
         KNeighborsClassifierObject = KNeighborsClassifier()
         # Grid search over different Ks to choose the best one
         neighbors=np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200])

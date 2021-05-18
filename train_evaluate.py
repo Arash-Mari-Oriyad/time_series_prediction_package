@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import sys
 import datetime
+import traceback
 from models import KNN_REGRESSOR, KNN_CLASSIFIER, NN_REGRESSOR, NN_CLASSIFIER, GLM_REGRESSOR, GLM_CLASSIFIER, \
     GBM_REGRESSOR, GBM_CLASSIFIER
 
@@ -22,7 +23,7 @@ def complete_predicted_probabilities(predictions, all_labels, present_labels):
     return all_probabilities
 
 
-def train_evaluate(training_data, validation_data, model, model_type, model_parameters=None, labels = None, verbose=1):
+def train_evaluate(training_data, validation_data, model, model_type, model_parameters=None, labels = None, verbose=0):
     supported_models_name = ['gbm', 'glm', 'knn', 'nn']
     train_predictions = None
     validation_predictions = None
@@ -103,9 +104,10 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
                                                                                             Y_training, model_parameters,
                                                                                             verbose)
         except Exception as ex:
-            raise Exception("{0} model\n\t   {1}".format(model.upper(),ex))
+            raise Exception("{0} model\n\t   {1}\n\n{2}".format(model.upper(),str(ex),traceback.format_exc()))
             
-        if (model == 'nn') and (not np.allclose(1, train_predictions.sum(axis=1))) or (not np.allclose(1, validation_predictions.sum(axis=1))):
+        if model_type == 'classification':
+            if (model == 'nn') and (not np.allclose(1, train_predictions.sum(axis=1))) or (not np.allclose(1, validation_predictions.sum(axis=1))):
                  raise Exception(
                      "The output predictions of the neural network model need to be probabilities "
                      "i.e. they should sum up to 1.0 over classes. But the output does not match the condition. "
@@ -116,7 +118,7 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
         try:
             train_predictions, validation_predictions, trained_model = model(X_training, X_validation, Y_training)
         except:
-            raise Exception("The user-defined model is not compatible with the definition.")
+            raise Exception("The user-defined model '{0}' is not compatible with the definition.".format(model.__name__))
         
         if (type(train_predictions) not in (np.ndarray,list)) or (type(validation_predictions) not in (np.ndarray,list)):
             raise Exception("The output predictions of the user-defined model must be of type array.")
