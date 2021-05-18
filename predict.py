@@ -61,25 +61,28 @@ def predict(data: list,
 
     """
     # input checking
-    # data input checking
+    # data
     if not isinstance(data, list):
-        sys.exit("The input data must be a list of DataFrames or a list of strings of data addresses.")
+        sys.exit("The input 'data' must be a list of DataFrames or a list of data addresses.")
     str_check = [isinstance(d, str) for d in data]
     df_check = [isinstance(d, pd.DataFrame) for d in data]
     if not (all(str_check) or all(df_check)):
-        sys.exit("The input data must be a list of DataFrames or a list of strings of data addresses.")
-    # forecast_horizon input checking
+        sys.exit("The input 'data' must be a list of DataFrames or a list data addresses.")
+    # forecast_horizon
     if not (isinstance(forecast_horizon, int) and forecast_horizon >= 1):
-        sys.exit("forecast_horizon is not valid.")
-    # feature_scaler input checking
+        sys.exit("The input 'forecast_horizon' must be integer and greater than or equal to one.")
+    # feature_scaler
     if feature_scaler not in configurations.FEATURE_SCALERS:
-        sys.exit("feature_scaler input is not valid.")
-    # target_scaler input checking
+        sys.exit(f"The input 'feature_scaler' must be string and one of the following options:\n"
+                 f"{configurations.FEATURE_SCALERS}")
+    # target_scaler
     if target_scaler not in configurations.TARGET_SCALERS:
-        sys.exit("target_scaler input is not valid.")
-    # test_type input checking
+        sys.exit(f"The input 'target_scaler' must be string and one of the following options:\n"
+                 f"{configurations.TARGET_SCALERS}")
+    # test_type
     if test_type not in configurations.TEST_TYPES:
-        sys.exit("test_type is not valid.")
+        sys.exit(f"The input 'test_type' must be string and one of the following options:\n"
+                 f"{configurations.TEST_TYPES}")
     # feature_sets input checking
     if not (isinstance(feature_sets, dict) and len(feature_sets.keys()) == 1):
         sys.exit("feature_sets input format is not valid.")
@@ -220,6 +223,7 @@ def predict(data: list,
         # train_test
         best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
                                                        forecast_horizon=forecast_horizon,
+                                                       history_length=best_history_length,
                                                        input_scaler=feature_scaler,
                                                        output_scaler=target_scaler,
                                                        feature_or_covariate_set=best_feature_or_covariate_set,
@@ -309,6 +313,7 @@ def predict(data: list,
                                                                    data_temporal_ids[best_history_length][
                                                                    :-i])].copy(),
                                                            forecast_horizon=forecast_horizon,
+                                                           history_length=best_history_length,
                                                            input_scaler=feature_scaler,
                                                            output_scaler=target_scaler,
                                                            feature_or_covariate_set=best_feature_or_covariate_set,
@@ -368,6 +373,7 @@ def predict(data: list,
 
 if __name__ == '__main__':
     predict(data=['historical_data h=1.csv', 'historical_data h=2.csv', 'historical_data h=3.csv'],
+            feature_scaler='arash',
             test_type='whole-as-one',
             forecast_horizon=5,
             feature_sets={'covariate': 'mRMR'})
