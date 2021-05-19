@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from pathlib import Path
+import pathlib
 from performance import performance
 from select_features import select_features
 from split_data import split_data
@@ -51,11 +51,13 @@ def train_test(
 
 		model_type:	string
 
-		model_parameters:	list<int>
+		model_parameters:	list<int> or None
 
 		input_scaler:	string
 
 		output_scaler:	string
+
+		labels:	list<int> or None
 
 		performance_measures:	list<string>
 			a list of performance measures that the user wants to calculate the errors on predictions of test dataset 
@@ -107,14 +109,17 @@ def train_test(
 	if not(isinstance(model_type, str)):
 		raise TypeError("Expected a string for model_type.")
 	
-	if not(isinstance(model_parameters, list)):
-		raise TypeError("Expected a list for model_parameters.")
+	if not(isinstance(model_parameters, list) or model_parameters == None):
+		raise TypeError("Expected a list or None value for model_parameters.")
 	
 	if not(isinstance(input_scaler, str)):
 		raise TypeError("Expected a string for input_scaler.")
 	
 	if not(isinstance(output_scaler, str)):
 		raise TypeError("Expected a string for output_scaler.")
+
+	if not(isinstance(labels, list) or labels == None):
+		raise TypeError("Expected a list or None value for labels.")
 	
 	if not(isinstance(performance_measures, list)):
 		raise TypeError("Expected a list for performance_measures.")
@@ -125,7 +130,7 @@ def train_test(
 	if not(isinstance(performance_report, bool)):
 		raise TypeError("Expected a bool variable for performance_report.")
 	
-	if not(isinstance(save_predictions, bool)) == False:
+	if not(isinstance(save_predictions, bool)):
 		raise TypeError("Expected a bool variable for save_predictions.")
 	
 	if not(isinstance(verbose, int)):
@@ -212,7 +217,7 @@ def train_test(
 
 	# checking for some files to exit which will be used in the next phases
 	test_process_backup_file_name = 'test_process_backup.csv'
-	if Path(test_process_backup_file_name).is_file() == False:
+	if pathlib.Path(test_process_backup_file_name).is_file() == False:
 		df = pd.DataFrame(columns=['spatial id', 'temporal id', 'Target', 'Normal target', 'prediction'])
 		df.to_csv(test_process_backup_file_name, index=False)
 
@@ -272,6 +277,12 @@ def train_test(
 		num_params=number_of_parameters, 
 		labels=labels)
 	
+	# checking for existance of some directories for logging purpose
+	if pathlib.Path('prediction/test process').is_dir() == False:
+		pathlib.Path('prediction/test process').mkdir(parents=True, exist_ok=True)
+	if pathlib.Path('performance/test process').is_dir() == False:
+		pathlib.Path('performance/test process').mkdir(parents=True, exist_ok=True)
+
 	# saving predictions based on model_type
 	pred_file_name = 'prediction/test process/test prediction forecast horizon = %s.csv' % (forecast_horizon)
 	testing_predictions = np.array(testing_predictions)
@@ -306,7 +317,7 @@ def train_test(
 		}
 		df = pd.DataFrame(df_data, columns=list(df_data.keys()))
 		for i in range(len(performance_measures)):
-			df[performance_measures[i]] = list(test_prediction_errors[i])
+			df[performance_measures[i]] = list([float(test_prediction_errors[i])])
 		df.to_csv(performance_file_name, index=False)
 	
 	return model, model_parameters
