@@ -170,6 +170,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     # find the target mode, target granularity, and granularity by decoding target variable column name
     for i in range(len(data_list)):
         target_mode, target_granularity, granularity, data_list[i] = get_target_quantities(data_list[i])
+        temp_data = data_list[i].sort_values(by = ['temporal id','spatial id']).copy()
+        number_of_spatial_units = len(temp_data['spatial id'].unique())
+        if all(temp_data.tail(granularity*forecast_horizon*number_of_spatial_units)['Target'].isna()):
+            data_list[i] = temp_data.iloc[:-(granularity*forecast_horizon*number_of_spatial_units)]
+        
         
     max_history = len(data_list)
         
