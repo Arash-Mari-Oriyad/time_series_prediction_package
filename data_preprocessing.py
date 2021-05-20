@@ -8,17 +8,24 @@ import calendar
 
 
 ###################### renaming the columns to formal format
+
 def rename_columns(data,column_identifier, mode = 'formalize'):
     
     if type(column_identifier) == dict:
         if mode == 'formalize':
             for key, value in column_identifier.items():
                 if key not in ['temporal covariates','spatial covariates']:
-                    data.rename(columns = {value:key}, inplace = True)
+                    if (key == 'target') and (value in column_identifier['temporal covariates']) and (value in data.columns):
+                        data.loc[:,('target')] = list(data[value])
+                    else:
+                        data.rename(columns = {value:key}, inplace = True)
         elif mode == 'deformalize':
             for key, value in column_identifier.items():
                 if key not in ['temporal covariates','spatial covariates']:
-                    data.rename(columns = {key:value}, inplace = True)
+                    if (key == 'target') and (value in column_identifier['temporal covariates']) and (value in data.columns):
+                        data = data.drop(['target'],axis = 1)
+                    else:
+                        data.rename(columns = {key:value}, inplace = True)
             
     elif column_identifier is not None:
         sys.exit("The column_identifier must be of type dict")
@@ -181,7 +188,7 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         future_data = future_data[~(future_data[temporal_identifier_column_name].isin(incomplete_dates))]
         current_data = temporal_data[~(temporal_data['...'].isin(future_data['...']))]
         
-        number_of_futuristic_temporal_units = len(future_data[temporal_identifier_column_name].unique())
+        futuristic_temporal_units = list(future_data[temporal_identifier_column_name].unique())
         future_data_table_columns = id_columns + futuristic_covariate_list
         future_data_table = future_data[future_data_table_columns]
 
@@ -196,7 +203,7 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         if spatial_data is not None:
             current_data = pd.merge(current_data, spatial_data, on = 'spatial id level 1', how = 'left')
         
-        return current_data, future_data_table, number_of_futuristic_temporal_units
+        return current_data, future_data_table, futuristic_temporal_units
         
     if mode == 'add':
         for col in non_futuristic_covariates:
@@ -210,14 +217,27 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         if 'dummy temporal id' in temporal_data.columns:
             temporal_data = temporal_data.drop(['dummy temporal id'], axis = 1)
             
-        number_of_futuristic_temporal_units = len(future_data_table[temporal_identifier_column_name].unique())
+        futuristic_temporal_units = list(future_data_table[temporal_identifier_column_name].unique())
         
         if spatial_data is not None:
             data = pd.merge(temporal_data, spatial_data, on = 'spatial id level 1', how = 'left')
         else: data = temporal_data
             
-        return data, None, number_of_futuristic_temporal_units
+        return data, None, futuristic_temporal_units
+
+        
+############################ filling up the future temporal units null values with inf to recognize them later
     
+def fill_future_nulls(data, futuristic_temporal_units):
+        if 'temporal id' in data.columns:
+            temporal_identifier_column_name = 'temporal id'
+        elif 'temporal id level 1' in data.columns:
+            temporal_identifier_column_name = 'temporal id level 1'
+        current_data = data[~(data[temporal_identifier_column_name].isin(futuristic_temporal_units))]
+        future_data = data[data[temporal_identifier_column_name].isin(futuristic_temporal_units)]
+        future_data = future_data.fillna(np.inf)
+        data = current_data.append(future_data)
+        return data
         
 ############################ adding an integrated teporal id to the data for non integrated temporal id format
 
@@ -542,7 +562,7 @@ def prepare_data(data, column_identifier):
 ############################  imputing the tepmoral data ####################################
 #############################################################################################
 
-def impute(data, column_identifier = None, verbose = 1):
+def impute(data, column_identifier = None, verbose = 0):
     
     if type(data) == str:
         data = pd.read_csv(data)
@@ -629,7 +649,7 @@ def impute(data, column_identifier = None, verbose = 1):
 ############################  transforming the spatial scale ####################################
 #################################################################################################
 
-def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial_scale_level = 2, aggregation_mode = 'mean', column_identifier = None, verbose = 1):
+def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial_scale_level = 2, aggregation_mode = 'mean', column_identifier = None, verbose = 0):
     
     # initializing list of covariates with sum or mean aggregation modes
     mean_covariates = []
@@ -712,17 +732,13 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
     if len(mean_covariates)>0:
         mean_covariates+=base_columns
         mean_data = data.copy()[mean_covariates]
-        mean_data = mean_data.fillna(np.inf)
         mean_data = mean_data.groupby(base_columns).mean()
-        mean_data = mean_data.replace([np.inf, -np.inf], np.nan)
         mean_data = mean_data.reset_index()
 
     if len(sum_covariates)>0:
         sum_covariates+=base_columns
         sum_data = data.copy()[sum_covariates]
-        sum_data = sum_data.fillna(np.inf)
-        sum_data = sum_data.groupby(base_columns).sum()
-        sum_data = sum_data.replace([np.inf, -np.inf], np.nan)
+        sum_data = sum_data.groupby(base_columns).sum(min_count=1)
         sum_data = sum_data.reset_index()
 
     if len(mean_covariates)>0 and len(sum_covariates)>0:
@@ -751,7 +767,7 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
 ############################  transforming temporal scale ####################################
 ##############################################################################################
 
-def temporal_scale_transform(data, column_identifier = None, temporal_scale_level = 2, augmentation = False, verbose = 1):
+def temporal_scale_transform(data, column_identifier = None, temporal_scale_level = 2, augmentation = False, verbose = 0):
     
     if type(data) == str:
         data = pd.read_csv(data)
@@ -819,9 +835,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
                 data = data[data['temporal id'] != min_temporal_id]
             
             base_columns = ['temporal id', 'spatial id level 1']
-            data = data.fillna(np.inf)
             data = data.groupby(base_columns).mean()
-            data = data.replace([np.inf, -np.inf], np.nan)
             data = data.reset_index()
 
         if augmentation == True:
@@ -836,9 +850,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
                 current_temporal_id = data.copy().tail(1)['temporal id'].values[0]
 
                 # average of covariates and target values on last bigger temporal scale unit for all spatial scale units
-                bigger_scale_unit_data = bigger_scale_unit_data.fillna(np.inf)
                 bigger_scale_unit_data_average = bigger_scale_unit_data.groupby(['spatial id level 1']).mean().reset_index()
-                bigger_scale_unit_data_average = bigger_scale_unit_data_average.replace([np.inf, -np.inf], np.nan)
                 bigger_scale_unit_data_average.loc[:,('temporal id')] = current_temporal_id
 
                 transformed_data = transformed_data.append(bigger_scale_unit_data_average)
@@ -880,9 +892,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
 
             base_columns = ['dummy temporal id', 'spatial id level 1']
 
-            data = data.fillna(np.inf)
             data = data.groupby(base_columns).mean()
-            data = data.replace([np.inf, -np.inf], np.nan)
             data = data.reset_index()
             data = pd.merge(temporal_levels_data_frame.drop_duplicates(), data, on = 'dummy temporal id', how = 'right').drop_duplicates().copy()
             # sorting columns
@@ -912,9 +922,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
                 current_temporal_id = data.copy().tail(1)['dummy temporal id'].values[0]
 
                 # average of covariates and target values on last bigger temporal scale unit for all spatial scale units
-                bigger_scale_unit_data = bigger_scale_unit_data.fillna(np.inf)
                 bigger_scale_unit_data_average = bigger_scale_unit_data.groupby(['spatial id level 1']).mean().reset_index()
-                bigger_scale_unit_data_average = bigger_scale_unit_data_average.replace([np.inf, -np.inf], np.nan)
                 bigger_scale_unit_data_average.loc[:,('dummy temporal id')] = current_temporal_id
                 
 
@@ -955,7 +963,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
 
 # modifying target to the cumulative or differential or moving average mode
 
-def target_modification(data, target_mode, column_identifier = None, verbose = 1):
+def target_modification(data, target_mode, column_identifier = None, verbose = 0):
     
     if type(data) == str:
         data = pd.read_csv(data)
@@ -1127,7 +1135,7 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 1
 
 
 def make_historical_data(data, forecast_horizon, history_length = 1, column_identifier = None,
-                         futuristic_covariates = None, future_data_table = None, step = 1, verbose = 1):
+                         futuristic_covariates = None, future_data_table = None, step = 1, verbose = 0):
     
     future_data = True
     if type(data) != dict :
@@ -1317,22 +1325,22 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
     
     # adding future values of futuristic covariates to the data
     if future_data_table is not None:
-        data, future_data_table, number_of_futuristic_temporal_units = current_future(data = data.copy(), future_data_table = future_data_table,
+        data, future_data_table, futuristic_temporal_units = current_future(data = data.copy(), future_data_table = future_data_table,
                                                               futuristic_covariates = futuristic_covariates,
                                                               column_identifier = column_identifier , mode = 'add')
     else:
-        _, _, number_of_futuristic_temporal_units = current_future(data = data.copy(),
+        _, _, futuristic_temporal_units = current_future(data = data.copy(),
                                                               future_data_table = None,
                                                               futuristic_covariates = futuristic_covariates,
                                                               column_identifier = column_identifier , mode = 'split')
     
     
-    
+    number_of_futuristic_temporal_units = len(futuristic_temporal_units)
     data = data.drop_duplicates(subset = ['temporal id','spatial id level 1']).copy()
     data = data.sort_values(by = ['temporal id','spatial id level 1']).copy()
     
     ####################################### main part #######################################
-    
+
     if verbose > 0:
         if type(history_length) == int :
             print("\nMaking historical data with the forecast horizon of {0} and history length of {1} is running.\n".format(forecast_horizon, history_length))
@@ -1450,7 +1458,7 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
 def data_preprocess(data, forecast_horizon, history_length = 1, column_identifier = None, spatial_scale_table = None,
                     spatial_scale_level = 1, temporal_scale_level = 1,
                     target_mode = 'normal', imputation = True, aggregation_mode = 'mean', augmentation = False,
-                    futuristic_covariates = None, future_data_table = None, save_address = None, verbose = 1):
+                    futuristic_covariates = None, future_data_table = None, save_address = None, verbose = 0):
     
     spatial_covariates = []
     temporal_covariates = []
@@ -1582,10 +1590,18 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         spatial_data = spatial_data[spatial_data['spatial id level 1'].isin(temporal_data['spatial id level 1'].unique())]
     
 
+        
+    # adding future values of futuristic covariates to the data and get the futuristic temporal units
     if future_data_table is not None:
-        temporal_data, future_data_table, _ = current_future(data = temporal_data, future_data_table = future_data_table,
+        temporal_data, future_data_table, futuristic_temporal_units = current_future(data = temporal_data.copy(), future_data_table = future_data_table,
                                                               futuristic_covariates = futuristic_covariates,
                                                               column_identifier = column_identifier , mode = 'add')
+    else:
+        _, _, futuristic_temporal_units = current_future(data = temporal_data.copy(),
+                                                              future_data_table = None,
+                                                              futuristic_covariates = futuristic_covariates,
+                                                              column_identifier = column_identifier , mode = 'split')
+        
     ############################## spatial scale transform ##############################
     
     if spatial_scale_level > 1:
@@ -1636,8 +1652,6 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
             spatial_identifier = list(filter(lambda x: x.startswith(('spatial id')),spatial_data.columns))[0]
             spatial_data.rename(columns = {spatial_identifier:'spatial id level 1'}, inplace = True)
             
-    
-    
     ############################## temporal scale transform ##############################
     
     if temporal_scale_level > 1:
@@ -1649,10 +1663,17 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         # will be needed for making historical data
         if augmentation == True:
             granularity = find_granularity(temporal_data.copy(), temporal_scale_level)
-
+            
+        # filling up the future temporal units null values with inf to recognize the future temporal units
+        # after temporal transform and return its values to null for non futuristic covariates
+        temporal_data = fill_future_nulls(data = temporal_data.copy(), futuristic_temporal_units = futuristic_temporal_units)
+        
         # transformation
         temporal_data = temporal_scale_transform(temporal_data.copy(), temporal_scale_level = temporal_scale_level, augmentation = augmentation, verbose = 0)
-
+        
+        # return null values of non futuristic covariates in future temporal units
+        temporal_data = temporal_data.replace([np.inf, -np.inf], np.nan)
+        
         # to pass the data to the other functions, it must be same as raw data 
         # the next lines reset the names of temporal id level columns to start from level one (only needed for non_integrated temporal id format)
         if augmentation == False:
@@ -1669,13 +1690,12 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
                         temporal_data.rename(columns = {'temporal id level '+str(level):'temporal id level '+str(shifted_level)}, inplace = True)
                     else:
                         break
-
     ############################## target modification ##############################
     
     if (target_mode != 'normal') and (verbose > 0):
             print("-"*35+"\nTarget modification is running.\n"+"-"*35+"\n")
         
-    # removing the rows related to the future data before target modification may fill the value of target in future
+    # removing the rows related to the future data before target modification cause it may fill the value of target in future
     if future_data_table is None:
         temporal_data, future_data_table, _ = current_future(data = temporal_data.copy(), future_data_table = None,
                                                           futuristic_covariates = futuristic_covariates,
@@ -1782,7 +1802,6 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
                 make_hist_data = {'temporal_data':temporal_data.copy(),'spatial_data':spatial_data.copy()}
             else:
                 make_hist_data = {'temporal_data':temporal_data.copy(),'spatial_data':None}
-
                 
             historical_data[stage] = make_historical_data(data = make_hist_data,
                                                     forecast_horizon = forecast_horizon, column_identifier = column_identifier,
