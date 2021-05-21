@@ -137,6 +137,14 @@ def train_test(
 		raise TypeError("Expected an integer (0 or 1 or 2) for verbose.")
 	################################
 
+	# get some information of the data
+	target_mode, target_granularity, granularity, data = get_target_quantities(data=data.copy())
+
+	# check rows related to future prediction are removed and if not then remove them
+	temp_data = data.sort_values(by = ['temporal id','spatial id']).copy()
+	number_of_spatial_units = len(temp_data['spatial id'].unique())
+	if all(temp_data.tail(granularity*forecast_horizon*number_of_spatial_units)['Target'].isna()):
+		data = temp_data.iloc[:-(granularity*forecast_horizon*number_of_spatial_units)]
 
 	# check if model is a string or function
 	model_name = ''
@@ -160,9 +168,6 @@ def train_test(
 		data=data.copy(), 
 		ordered_covariates_or_features=feature_or_covariate_set
 	)
-
-	# get some information of the data
-	target_mode, target_granularity, granularity, processed_data = get_target_quantities(data=processed_data.copy())
 
 	# splitting data in the way is set for train_test
 	training_data, _, testing_data, gap_data = split_data(
