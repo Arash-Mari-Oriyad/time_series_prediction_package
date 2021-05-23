@@ -65,8 +65,6 @@ def predict_future(data: pd.DataFrame or str,
     if not (isinstance(verbose, int) and verbose in configurations.VERBOSE_OPTIONS):
         sys.exit(f"Error: The input 'verbose' is not valid. Valid options are {configurations.VERBOSE_OPTIONS}.")
 
-    print('in predict_future')
-
     # data and future_data preparing
     if isinstance(data, str):
         try:
@@ -156,9 +154,9 @@ def predict_future(data: pd.DataFrame or str,
 
     # ? classification
     data_to_save = pd.DataFrame()
-    data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else model.__name__
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
+    data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else model.__name__
     data_to_save.loc[:, 'real'] = None
     data_to_save.loc[:, 'prediction'] = normal_testing_predictions
 
