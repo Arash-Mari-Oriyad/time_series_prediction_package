@@ -99,18 +99,18 @@ def predict_future(data: pd.DataFrame or str,
                            for column_name in training_data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
 
-    # -for each spatial id
     if scenario:
-        for futuristic_feature in futuristic_features:
-            if scenario == 'max':
-                value = training_data[futuristic_feature].max()
-            elif scenario == 'min':
-                value = training_data[futuristic_feature].min()
-            elif scenario == 'mean':
-                value = training_data[futuristic_feature].mean()
-            else:
-                value = training_data[futuristic_feature].values[-1]
-            testing_data[futuristic_feature].values[:] = value
+        for spatial_id in testing_data['spatial id'].tolist():
+            for futuristic_feature in futuristic_features:
+                if scenario == 'max':
+                    value = training_data.loc[training_data['spatial id'] == spatial_id, futuristic_feature].max()
+                elif scenario == 'min':
+                    value = training_data.loc[training_data['spatial id'] == spatial_id, futuristic_feature].min()
+                elif scenario == 'mean':
+                    value = training_data.loc[training_data['spatial id'] == spatial_id, futuristic_feature].mean()
+                else:
+                    value = training_data.loc[training_data['spatial id'] == spatial_id, futuristic_feature].values[-1]
+                testing_data.loc[testing_data['spatial id'] == spatial_id, futuristic_feature] = value
     else:
         if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
             sys.exit("Error: The input 'scenario' is not provided and "
