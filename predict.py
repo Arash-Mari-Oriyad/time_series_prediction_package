@@ -205,46 +205,46 @@ def predict(data: list,
         for d in data:
             ordered_covariates_or_features.append(rank_features(data=d.copy(),
                                                                 ranking_method=ranking_method))
-    ordered_covariates_or_features = ordered_covariates_or_features[:7]
+    # ordered_covariates_or_features = ordered_covariates_or_features[:7]
 
     # main process
     if test_type == 'whole-as-one':
-        # # train_validate
-        # best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-        #     train_validate(data=[d.copy() for d in data],
-        #                    forecast_horizon=forecast_horizon,
-        #                    input_scaler=feature_scaler,
-        #                    output_scaler=target_scaler,
-        #                    ordered_covariates_or_features=ordered_covariates_or_features,
-        #                    model_type=model_type,
-        #                    models=models,
-        #                    instance_testing_size=instance_testing_size,
-        #                    splitting_type=splitting_type,
-        #                    instance_validation_size=instance_validation_size,
-        #                    instance_random_partitioning=instance_random_partitioning,
-        #                    fold_total_number=fold_total_number,
-        #                    performance_benchmark=performance_benchmark,
-        #                    performance_measures=performance_measures,
-        #                    performance_report=validation_performance_report,
-        #                    save_predictions=save_predictions,
-        #                    verbose=verbose)
-        #
-        # # train_test
-        # best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
-        #                                                forecast_horizon=forecast_horizon,
-        #                                                history_length=best_history_length,
-        #                                                input_scaler=feature_scaler,
-        #                                                output_scaler=target_scaler,
-        #                                                feature_or_covariate_set=best_feature_or_covariate_set,
-        #                                                model_type=model_type,
-        #                                                model=best_model,
-        #                                                model_parameters=best_model_parameters,
-        #                                                instance_testing_size=instance_testing_size,
-        #                                                performance_measures=performance_measures,
-        #                                                performance_mode=performance_mode,
-        #                                                performance_report=testing_performance_report,
-        #                                                save_predictions=save_predictions,
-        #                                                verbose=verbose)
+        # train_validate
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+            train_validate(data=[d.copy() for d in data],
+                           forecast_horizon=forecast_horizon,
+                           input_scaler=feature_scaler,
+                           output_scaler=target_scaler,
+                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           model_type=model_type,
+                           models=models,
+                           instance_testing_size=instance_testing_size,
+                           splitting_type=splitting_type,
+                           instance_validation_size=instance_validation_size,
+                           instance_random_partitioning=instance_random_partitioning,
+                           fold_total_number=fold_total_number,
+                           performance_benchmark=performance_benchmark,
+                           performance_measures=performance_measures,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
+                           verbose=verbose)
+
+        # train_test
+        best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
+                                                       forecast_horizon=forecast_horizon,
+                                                       history_length=best_history_length,
+                                                       input_scaler=feature_scaler,
+                                                       output_scaler=target_scaler,
+                                                       feature_or_covariate_set=best_feature_or_covariate_set,
+                                                       model_type=model_type,
+                                                       model=best_model,
+                                                       model_parameters=best_model_parameters,
+                                                       instance_testing_size=instance_testing_size,
+                                                       performance_measures=performance_measures,
+                                                       performance_mode=performance_mode,
+                                                       performance_report=testing_performance_report,
+                                                       save_predictions=save_predictions,
+                                                       verbose=verbose)
 
         # predict_future
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
@@ -287,54 +287,54 @@ def predict(data: list,
 
     elif test_type == 'one-by-one':
         # loop over test points
-        # data_temporal_ids = [d['temporal id'].unique() for d in data]
-        # if isinstance(instance_testing_size, float):
-        #     instance_testing_size = int(instance_testing_size * len(data_temporal_ids[0]))
-        # for i in range(instance_testing_size):
-        #     # train_validate
-        #     best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-        #         train_validate(data=
-        #                        [d[d['temporal id'].isin((
-        #                            data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i]))].copy()
-        #                         for index, d in enumerate(data)],
-        #                        forecast_horizon=forecast_horizon,
-        #                        input_scaler=feature_scaler,
-        #                        output_scaler=target_scaler,
-        #                        ordered_covariates_or_features=ordered_covariates_or_features,
-        #                        model_type=model_type,
-        #                        models=models,
-        #                        instance_testing_size=1,
-        #                        splitting_type=splitting_type,
-        #                        instance_validation_size=instance_validation_size,
-        #                        instance_random_partitioning=instance_random_partitioning,
-        #                        fold_total_number=fold_total_number,
-        #                        performance_benchmark=performance_benchmark,
-        #                        performance_measures=performance_measures,
-        #                        performance_report=validation_performance_report,
-        #                        save_predictions=save_predictions,
-        #                        verbose=verbose)
-        #
-        #     # train_test
-        #     d = data[best_history_length - 1].copy()
-        #     best_model, best_model_parameters = train_test(data=d[d['temporal id'].isin(
-        #                                                           (data_temporal_ids[best_history_length][:]
-        #                                                            if i == 0
-        #                                                            else data_temporal_ids[best_history_length][:-i]
-        #                                                            ))].copy(),
-        #                                                    forecast_horizon=forecast_horizon,
-        #                                                    history_length=best_history_length,
-        #                                                    input_scaler=feature_scaler,
-        #                                                    output_scaler=target_scaler,
-        #                                                    feature_or_covariate_set=best_feature_or_covariate_set,
-        #                                                    model_type=model_type,
-        #                                                    model=best_model,
-        #                                                    model_parameters=best_model_parameters,
-        #                                                    instance_testing_size=1,
-        #                                                    performance_measures=performance_measures,
-        #                                                    performance_mode=performance_mode,
-        #                                                    performance_report=testing_performance_report,
-        #                                                    save_predictions=save_predictions,
-        #                                                    verbose=verbose)
+        data_temporal_ids = [d['temporal id'].unique() for d in data]
+        if isinstance(instance_testing_size, float):
+            instance_testing_size = int(instance_testing_size * len(data_temporal_ids[0]))
+        for i in range(instance_testing_size):
+            # train_validate
+            best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+                train_validate(data=
+                               [d[d['temporal id'].isin((
+                                   data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i]))].copy()
+                                for index, d in enumerate(data)],
+                               forecast_horizon=forecast_horizon,
+                               input_scaler=feature_scaler,
+                               output_scaler=target_scaler,
+                               ordered_covariates_or_features=ordered_covariates_or_features,
+                               model_type=model_type,
+                               models=models,
+                               instance_testing_size=1,
+                               splitting_type=splitting_type,
+                               instance_validation_size=instance_validation_size,
+                               instance_random_partitioning=instance_random_partitioning,
+                               fold_total_number=fold_total_number,
+                               performance_benchmark=performance_benchmark,
+                               performance_measures=performance_measures,
+                               performance_report=validation_performance_report,
+                               save_predictions=save_predictions,
+                               verbose=verbose)
+
+            # train_test
+            d = data[best_history_length - 1].copy()
+            best_model, best_model_parameters = train_test(data=d[d['temporal id'].isin(
+                                                                  (data_temporal_ids[best_history_length][:]
+                                                                   if i == 0
+                                                                   else data_temporal_ids[best_history_length][:-i]
+                                                                   ))].copy(),
+                                                           forecast_horizon=forecast_horizon,
+                                                           history_length=best_history_length,
+                                                           input_scaler=feature_scaler,
+                                                           output_scaler=target_scaler,
+                                                           feature_or_covariate_set=best_feature_or_covariate_set,
+                                                           model_type=model_type,
+                                                           model=best_model,
+                                                           model_parameters=best_model_parameters,
+                                                           instance_testing_size=1,
+                                                           performance_measures=performance_measures,
+                                                           performance_mode=performance_mode,
+                                                           performance_report=testing_performance_report,
+                                                           save_predictions=save_predictions,
+                                                           verbose=verbose)
 
         # predict_future
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
@@ -383,4 +383,4 @@ def predict(data: list,
 if __name__ == '__main__':
     predict(data=['historical_data h=1.csv', 'historical_data h=2.csv', 'historical_data h=3.csv'],
             forecast_horizon=4,
-            test_type='one-by-one')
+            test_type='whole-as-one')
