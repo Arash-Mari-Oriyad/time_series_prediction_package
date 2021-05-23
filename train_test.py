@@ -112,11 +112,11 @@ def train_test(
 	if not(isinstance(model_parameters, list) or model_parameters == None):
 		raise TypeError("Expected a list or None value for model_parameters.")
 	
-	if not(isinstance(input_scaler, str)):
-		raise TypeError("Expected a string for input_scaler.")
+	if not(isinstance(input_scaler, str) or input_scaler == None):
+		raise TypeError("Expected a string or None value for input_scaler.")
 	
-	if not(isinstance(output_scaler, str)):
-		raise TypeError("Expected a string for output_scaler.")
+	if not(isinstance(output_scaler, str) or output_scaler == None):
+		raise TypeError("Expected a string or None value for output_scaler.")
 
 	if not(isinstance(labels, list) or labels == None):
 		raise TypeError("Expected a list or None value for labels.")
