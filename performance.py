@@ -151,23 +151,23 @@ def bic_regression(y_true, y_pred, k):
 	bic = k*log(n) - 2*log(mse_error)
 	return bic
 
-def aic_classification(y_true, y_pred, k):
+# log_loss (in this function, likelihood is defined as cross-entropy loss, and so it's better to use it for classification)
+def likelihood(y_true, y_pred, labels):
+	return (metrics.log_loss(y_true=y_true, y_pred=y_pred, labels=labels))
+
+def aic_classification(y_true, y_pred, k, labels):
 	# k = number of independent variables to build model
-	mse_error = metrics.log_loss(y_true, y_pred)
-	aic = 2*k - 2*log(mse_error)
+	likelihood_error = likelihood(y_true, y_pred, labels)
+	aic = 2*k - 2*log(likelihood_error)
 	return aic
 
-def bic_classification(y_true, y_pred, k):
+def bic_classification(y_true, y_pred, k, labels):
 	# k = number of independent variables to build model
 	# n = sample size (#observations)
 	n = len(y_true)
-	mse_error = metrics.log_loss(y_true, y_pred)
-	bic = k*log(n) - 2*log(mse_error)
+	likelihood_error = likelihood(y_true, y_pred, labels)
+	bic = k*log(n) - 2*log(likelihood_error)
 	return bic
-
-# log_loss
-def likelihood(y_true, y_pred, labels):
-	return (metrics.log_loss(y_true=y_true, y_pred=y_pred, labels=labels))
 
 def performance(
 		true_values, predicted_values, 
@@ -232,7 +232,7 @@ def performance(
 				if model_type == 'regression':
 					errors.append(aic_regression(true_values, predicted_values, num_params))
 				elif model_type == 'classification':
-					errors.append(aic_classification(true_values, predicted_values, num_params))
+					errors.append(aic_classification(true_values, predicted_values, num_params, labels))
 		elif error_type.lower() == 'bic':
 			if num_params == None:	# if num_params is None, then None value for BIC will be returned
 				errors.append(None)
@@ -240,7 +240,7 @@ def performance(
 				if model_type == 'regression':
 					errors.append(bic_regression(true_values, predicted_values, num_params))
 				elif model_type == 'classification':
-					errors.append(bic_classification(true_values, predicted_values, num_params))
+					errors.append(bic_classification(true_values, predicted_values, num_params, labels))
 		elif error_type.lower() == 'likelihood':
 			errors.append(likelihood(true_values, predicted_values, labels))
 
