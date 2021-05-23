@@ -13,7 +13,7 @@ def get_future_data(data: list,
     if not (isinstance(forecast_horizon, int) and forecast_horizon >= 1):
         sys.exit('data input format is not valid')
 
-    _, _, granularity, _ = get_target_quantities(data[0])
+    _, _, granularity, _ = get_target_quantities(data[0].copy())
 
     future_data = [d.iloc[-(forecast_horizon * granularity * len(d['spatial id'].unique())):].copy() for d in data]
     data = [d.iloc[:-(forecast_horizon * granularity * len(d['spatial id'].unique()))].copy() for d in data]
