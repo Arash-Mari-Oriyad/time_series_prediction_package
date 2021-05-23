@@ -1,3 +1,9 @@
+# prediction directory
+prediction
+
+# perforemance directory
+performance
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
