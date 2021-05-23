@@ -1,27 +1,13 @@
 # performance function
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import r2_score
 from sklearn import metrics
 from sklearn.preprocessing import label_binarize
 from math import log
 
-# mean absolute error
-def mae(true_values, predicted_values):
-	return np.mean(np.abs(true_values - predicted_values))
-
-# mean absolute percentage error
-def mape(true_values, predicted_values):
-	return np.mean(np.abs((true_values - predicted_values) / true_values))
-
-# mean squared error
-def mse(true_values, predicted_values):
-	return np.mean(np.square(true_values - predicted_values))
-
 # mean absolute scaled error
 def mase(true_values, predicted_values, trivial_values):
-	return (mae(true_values, predicted_values))/(mae(true_values, trivial_values))
+	return (metrics.mean_absolute_error(true_values, predicted_values))/(metrics.mean_absolute_error(true_values, trivial_values))
 
 # ROC AUC for binary and multiclass classification
 def auc(true_values, y_score, labels=None):
@@ -153,7 +139,7 @@ def aupr(true_values, probas_pred, labels):
 
 def aic_regression(y_true, y_pred, k):
 	# k = number of independent variables to build model
-	mse_error = mse(y_true, y_pred)
+	mse_error = metrics.mean_squared_error(y_true, y_pred)
 	aic = 2*k - 2*log(mse_error)
 	return aic
 
@@ -161,7 +147,7 @@ def bic_regression(y_true, y_pred, k):
 	# k = number of independent variables to build model
 	# n = sample size (#observations)
 	n = len(y_true)
-	mse_error = mse(y_true, y_pred)
+	mse_error = metrics.mean_squared_error(y_true, y_pred)
 	bic = k*log(n) - 2*log(mse_error)
 	return bic
 
@@ -226,13 +212,13 @@ def performance(
 	# moving on performance_measures and calculating errors
 	for error_type in performance_measures:
 		if error_type.lower() == 'mae':
-			errors.append(mae(true_values, predicted_values))
+			errors.append(metrics.mean_absolute_error(true_values, predicted_values))
 		elif error_type.lower() == 'mape':
-			errors.append(mape(true_values, predicted_values))
+			errors.append(metrics.mean_absolute_percentage_error(true_values, predicted_values))
 		elif error_type.lower() == 'mse':
-			errors.append(mse(true_values, predicted_values))
+			errors.append(metrics.mean_squared_error(true_values, predicted_values))
 		elif error_type.lower() == 'r2_score':
-			errors.append(r2_score(true_values, predicted_values))
+			errors.append(metrics.r2_score(true_values, predicted_values))
 		elif error_type.lower() == 'mase':
 			errors.append(mase(true_values, predicted_values, trivial_values))
 		elif error_type.lower() == 'auc':
