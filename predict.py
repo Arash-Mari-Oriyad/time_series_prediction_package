@@ -205,50 +205,48 @@ def predict(data: list,
         for d in data:
             ordered_covariates_or_features.append(rank_features(data=d.copy(),
                                                                 ranking_method=ranking_method))
+    ordered_covariates_or_features = ordered_covariates_or_features[:7]
 
     # main process
     if test_type == 'whole-as-one':
-        # # train_validate
-        # best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-        #     train_validate(data=[d.copy() for d in data],
-        #                    forecast_horizon=forecast_horizon,
-        #                    input_scaler=feature_scaler,
-        #                    output_scaler=target_scaler,
-        #                    ordered_covariates_or_features=ordered_covariates_or_features,
-        #                    model_type=model_type,
-        #                    models=models,
-        #                    instance_testing_size=instance_testing_size,
-        #                    splitting_type=splitting_type,
-        #                    instance_validation_size=instance_validation_size,
-        #                    instance_random_partitioning=instance_random_partitioning,
-        #                    fold_total_number=fold_total_number,
-        #                    performance_benchmark=performance_benchmark,
-        #                    performance_measure=performance_measures,
-        #                    performance_report=validation_performance_report,
-        #                    save_predictions=save_predictions,
-        #                    verbose=verbose)
-        #
-        # # train_test
-        # best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
-        #                                                forecast_horizon=forecast_horizon,
-        #                                                history_length=best_history_length,
-        #                                                input_scaler=feature_scaler,
-        #                                                output_scaler=target_scaler,
-        #                                                feature_or_covariate_set=best_feature_or_covariate_set,
-        #                                                model_type=model_type,
-        #                                                model=best_model,
-        #                                                model_parameters=best_model_parameters,
-        #                                                instance_testing_size=instance_testing_size,
-        #                                                performance_measures=performance_measures,
-        #                                                performance_mode=performance_mode,
-        #                                                performance_report=testing_performance_report,
-        #                                                save_predictions=save_predictions,
-        #                                                verbose=verbose)
+        # train_validate
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+            train_validate(data=[d.copy() for d in data],
+                           forecast_horizon=forecast_horizon,
+                           input_scaler=feature_scaler,
+                           output_scaler=target_scaler,
+                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           model_type=model_type,
+                           models=models,
+                           instance_testing_size=instance_testing_size,
+                           splitting_type=splitting_type,
+                           instance_validation_size=instance_validation_size,
+                           instance_random_partitioning=instance_random_partitioning,
+                           fold_total_number=fold_total_number,
+                           performance_benchmark=performance_benchmark,
+                           performance_measures=performance_measures,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
+                           verbose=verbose)
+
+        # train_test
+        best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
+                                                       forecast_horizon=forecast_horizon,
+                                                       history_length=best_history_length,
+                                                       input_scaler=feature_scaler,
+                                                       output_scaler=target_scaler,
+                                                       feature_or_covariate_set=best_feature_or_covariate_set,
+                                                       model_type=model_type,
+                                                       model=best_model,
+                                                       model_parameters=best_model_parameters,
+                                                       instance_testing_size=instance_testing_size,
+                                                       performance_measures=performance_measures,
+                                                       performance_mode=performance_mode,
+                                                       performance_report=testing_performance_report,
+                                                       save_predictions=save_predictions,
+                                                       verbose=verbose)
 
         # predict_future
-        print('before train_validate')
-        ordered_covariates_or_features = ordered_covariates_or_features[:5]
-        # print(len(ordered_covariates_or_features))
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
@@ -267,16 +265,10 @@ def predict(data: list,
                            performance_report=False,
                            save_predictions=False,
                            verbose=0)
-        # print(best_model)
-        # print(best_model_parameters)
-        # print(best_history_length)
-        # print(best_feature_or_covariate_set)
-        print('after train_validate')
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
         temp = forecast_horizon - 1
-        print('before predict_future')
         trained_model = predict_future(data=best_data[best_data['temporal id'].isin((best_data_temporal_ids
                                                                                      if temp == 0
                                                                                      else best_data_temporal_ids[:-temp]
@@ -292,7 +284,6 @@ def predict(data: list,
                                        scenario=scenario,
                                        save_predictions=save_predictions,
                                        verbose=verbose)
-        print('after predict_future')
 
     elif test_type == 'ono-by-one':
         # loop over test points
