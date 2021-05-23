@@ -26,43 +26,46 @@ def predict_future(data: pd.DataFrame or str,
     # input checking
     # data input checking
     if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
-        sys.exit("The input 'data' must be a dataframe or an address to a DataFrame.")
+        sys.exit("Error: The input 'data' must be a dataframe or an address to a DataFrame.")
     # future_data input checking
     if not (isinstance(future_data, pd.DataFrame) or isinstance(future_data, str)):
-        sys.exit("The input 'future_data' must be a DataFrame or an address to a dataframe.")
+        sys.exit("Error: The input 'future_data' must be a DataFrame or an address to a dataframe.")
     # forecast_horizon input checking
     if not (isinstance(forecast_horizon, int) and forecast_horizon >= 1):
-        sys.exit("forecast_horizon is not valid.")
+        sys.exit("Error: The input 'forecast_horizon' must be an integer and greater than zero.")
     # feature_scaler input checking
     if feature_scaler not in configurations.FEATURE_SCALERS:
-        sys.exit("feature_scaler input is not valid.")
+        sys.exit(f"Error: The input 'feature_scaler' is not valid. Valid options are: {configurations.FEATURE_SCALERS}")
     # target_scaler input checking
     if target_scaler not in configurations.TARGET_SCALERS:
-        sys.exit("target_scaler input is not valid.")
-    # feature_or_covariate_set
+        sys.exit(f"Error: The input 'target_scaler' is not valid. Valid options are: {configurations.TARGET_SCALERS}")
+    # feature_or_covariate_set input checking
     if not isinstance(feature_or_covariate_set, list):
-        sys.exit("feature_or_covariate_set input format is not valid.")
+        sys.exit("Error: The input 'feature_or_covariate_set' must be a list of features or covariates.")
     for feature_or_covariate in feature_or_covariate_set:
         if not isinstance(feature_or_covariate, str):
-            sys.exit("feature_or_covariate_set input format is not valid.")
-    # model_type
+            sys.exit("Error: The input 'feature_or_covariate_set' must be a list of features or covariates.")
+    # model_type input checking
     if model_type not in configurations.MODEL_TYPES:
-        sys.exit("model_type input is not valid.")
-    # model
+        sys.exit(f"Error: The input 'model_type' is not valid. Valid options are: {configurations.MODEL_TYPES}")
+    # model input checking
     if not ((isinstance(model, str) and model in configurations.PRE_DEFINED_MODELS) or callable(model)):
-        sys.exit("model input is not valid.")
-    # model_parameters
+        sys.exit(f"Error: The input 'model' must be whether one of the pre-defined models"
+                 f" ({configurations.PRE_DEFINED_MODELS}) or a callable object as a custom model.")
+    # model_parameters input checking
     if not (isinstance(model_parameters, dict) or model_parameters is None):
-        sys.exit("model_parameters input format is not valid.")
-    # scenario
-    if not ((isinstance(scenario, str) and scenario in configurations.SCENARIOS) or scenario is None):
-        sys.exit("scenario input is not valid.")
-    # save_predictions
+        sys.exit("Error: The input 'model_parameters' must be a dictionary of parameters or None.")
+    # scenario input checking
+    if scenario not in configurations.SCENARIOS:
+        sys.exit(f"Error: The input 'scenario' is not valid. Valid options are {configurations.SCENARIOS}.")
+    # save_predictions input checking
     if not isinstance(save_predictions, bool):
-        sys.exit("save_predictions input format is not valid.")
+        sys.exit("Error: The input 'save_predictions' must be boolean.")
     # verbose
     if not (isinstance(verbose, int) and verbose in configurations.VERBOSE_OPTIONS):
-        sys.exit("verbose input format is not valid.")
+        sys.exit(f"Error: The input 'verbose' is not valid. Valid options are {configurations.VERBOSE_OPTIONS}.")
+
+    print('in predict_future')
 
     # data and future_data preparing
     if isinstance(data, str):
@@ -93,10 +96,10 @@ def predict_future(data: pd.DataFrame or str,
                                    ordered_covariates_or_features=feature_or_covariate_set)
 
     futuristic_features = [column_name
-                           for column_name in data.columns.values
+                           for column_name in training_data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
 
-    # for each spatial id
+    # -for each spatial id
     if scenario:
         for futuristic_feature in futuristic_features:
             if scenario == 'max':
@@ -110,7 +113,8 @@ def predict_future(data: pd.DataFrame or str,
             testing_data[futuristic_feature].values[:] = value
     else:
         if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
-            sys.exit("scenario is not provided and some futuristic features have null values.")
+            sys.exit("Error: The input 'scenario' is not provided and "
+                     "some futuristic features have null values in the input 'future_data'.")
 
     scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data.copy(),
                                                              test_data=testing_data.copy(),
@@ -137,7 +141,7 @@ def predict_future(data: pd.DataFrame or str,
                                          base_data=training_data['Target'].values.tolist(),
                                          scaler=target_scaler)
 
-    normal_training_target, normal_testing_target, normal_training_prediction, normal_testing_prediction = \
+    normal_training_target, normal_testing_target, normal_training_predictions, normal_testing_predictions = \
         get_normal_target(
             training_target=training_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
             test_target=testing_data[['spatial id', 'temporal id', 'Target', 'Normal target']].copy(),
@@ -150,12 +154,13 @@ def predict_future(data: pd.DataFrame or str,
     testing_data_spatial_ids = normal_testing_target['spatial id'].copy()
     testing_data_temporal_ids = normal_testing_target['temporal id'].copy()
 
+    # ? classification
     data_to_save = pd.DataFrame()
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
     data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else model.__name__
     data_to_save.loc[:, 'real'] = None
-    data_to_save.loc[:, 'prediction'] = pd.Series(normal_testing_prediction)
+    data_to_save.loc[:, 'prediction'] = normal_testing_predictions
 
     save_predictions_address = \
         f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
@@ -170,6 +175,6 @@ def predict_future(data: pd.DataFrame or str,
                 os.mkdir('prediction/future prediction')
             if not os.path.exists('prediction/future prediction'):
                 os.mkdir('prediction/future prediction')
-        data_to_save.to_csv(save_predictions_address)
+        data_to_save.to_csv(save_predictions_address, index=False)
 
     return trained_model
