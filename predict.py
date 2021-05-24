@@ -159,11 +159,13 @@ def predict(data: list,
     if verbose not in configurations.VERBOSE_OPTIONS:
         sys.exit("verbose input is not valid.")
 
-    # removing prediction and performance directories
+    # removing prediction and performance directories and test_process_backup csv file
     if os.path.exists('prediction'):
         shutil.rmtree('prediction')
     if os.path.exists('performance'):
         shutil.rmtree('performance')
+    if os.path.isfile('test_process_backup.csv'):
+        os.remove('test_process_backup.csv')
 
     # data preparing
     if isinstance(data[0], str):
@@ -269,6 +271,7 @@ def predict(data: list,
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
         temp = forecast_horizon - 1
+
         trained_model = predict_future(data=best_data[best_data['temporal id'].isin((best_data_temporal_ids
                                                                                      if temp == 0
                                                                                      else best_data_temporal_ids[:-temp]
@@ -317,9 +320,9 @@ def predict(data: list,
             # train_test
             d = data[best_history_length - 1].copy()
             best_model, best_model_parameters = train_test(data=d[d['temporal id'].isin(
-                                                                  (data_temporal_ids[best_history_length][:]
+                                                                  (data_temporal_ids[best_history_length - 1][:]
                                                                    if i == 0
-                                                                   else data_temporal_ids[best_history_length][:-i]
+                                                                   else data_temporal_ids[best_history_length - 1][:-i]
                                                                    ))].copy(),
                                                            forecast_horizon=forecast_horizon,
                                                            history_length=best_history_length,
@@ -383,4 +386,4 @@ def predict(data: list,
 if __name__ == '__main__':
     predict(data=['historical_data h=1.csv', 'historical_data h=2.csv', 'historical_data h=3.csv'],
             forecast_horizon=4,
-            test_type='whole-as-one')
+            test_type='one-by-one')
