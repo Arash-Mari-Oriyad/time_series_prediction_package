@@ -404,7 +404,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
             sys.exit("The fold_total_number must be an integer greater than 1.")
 
     # check validity of instance_validation_size and instance_testing_size
-    elif splitting_type in ['training-validation', 'training-validation-testing']:
+    elif splitting_type == 'training-validation':
     
         if type(instance_validation_size) == float:
             if instance_validation_size > 1:
@@ -412,17 +412,14 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 
         elif (type(instance_validation_size) != int):
             sys.exit("The type of instance_validation_size must be int or float.")
-            
-        if splitting_type == 'training-validation-testing':
         
-            # check the type of instance_testing_size and instance_validation_size
-            if type(instance_testing_size) == float:
-                if instance_testing_size > 1:
-                    sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
-            elif (type(instance_testing_size) != int):
-                sys.exit("The type of instance_testing_size must be int or float.")
+        if type(instance_testing_size) == float:
+            if instance_testing_size > 1:
+                sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
+        elif (type(instance_testing_size) != int):
+            sys.exit("The type of instance_testing_size must be int or float.")
     else:
-        sys.exit("The specified splitting_type is ambiguous. The supported values are 'training-validation', 'training-validation-testing', and 'cross-validation'.")
+        sys.exit("The specified splitting_type is ambiguous. The supported values are 'training-validation' and 'cross-validation'.")
     
     # for non cross val splitting_type, the fold_total_number  will be set to 1, to perform the prediction process only one time
     if splitting_type != 'cross-validation':
@@ -474,12 +471,10 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         data = data_list[history-1].copy()
         
         # separating the test part
-        if splitting_type == 'training-validation-testing' :
-            raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
-                                                      instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
-                                                      instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
-        else:
-            raw_train_data = data.copy()
+        raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
+                                                  instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
+                                                  instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
+
         
         # initializing the pool for parallel run
         prediction_pool = Pool(processes = len(feature_sets_indices[history-1]) * fold_total_number * len(models_list) + 5)
@@ -711,12 +706,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     data = data_list[best_history_length-1].copy()
     
     # separating the test part
-    if splitting_type == 'training-validation-testing' :
-        raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
-                                                  instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
-                                                  instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
-    else:
-        raw_train_data = data.copy()
+    raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
+                                              instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
+                                              instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
     
     best_train_data = raw_train_data
     best_feature_or_covariate_set = [ordered_covariates_or_features[best_history_length-1][index] for index in best_feature_sets_indices]
