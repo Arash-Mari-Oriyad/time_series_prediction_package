@@ -27,7 +27,15 @@ MODEL_TYPES = ['regression', 'classification']
 
 PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
 
+REGRESSION_PERFORMANCE_MEASURES = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC']
+
+CLASSIFICATION_PERFORMANCE_MEASURES = ['AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
+
 PERFORMANCE_BENCHMARKS = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
+
+REGRESSION_PERFORMANCE_BENCHMARKS = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC']
+
+CLASSIFICATION_PERFORMANCE_BENCHMARKS = ['AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
 
 PERFORMANCE_MODES_STARTS_WITH = ['normal', 'cumulative', 'moving_average']
 

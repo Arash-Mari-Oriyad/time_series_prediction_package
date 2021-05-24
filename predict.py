@@ -174,6 +174,22 @@ def predict(data: list,
         except Exception as e:
             sys.exit(str(e))
 
+    # classification checking
+    labels = None
+    if model_type == 'classification':
+        if not set(performance_measures) <= set(configurations.CLASSIFICATION_PERFORMANCE_MEASURES):
+            sys.exit("Error: The input 'performance_measures' is not valid according to 'model_type=classification'.")
+        if performance_benchmark not in configurations.CLASSIFICATION_PERFORMANCE_BENCHMARKS:
+            sys.exit("Error: The input 'performance_benchmark' is not valid according to 'model_type=classification'.")
+        if performance_mode != 'normal':
+            performance_mode = 'normal'
+            print("Warning: The input 'performance_mode' is set to 'normal' according to model_type=classification'.")
+        if target_scaler is not None:
+            target_scaler = None
+            print("Warning: The input 'target_scaler' is set to None according to model_type=classification'.")
+        target_column_name = list(filter(lambda x: x.startswith('Target'), data[0].columns.values))[0]
+        labels = data[0].loc[:, target_column_name].unique().tolist()
+
     # one_by_one checking
     if test_type == 'one-by-one':
         splitting_type = 'training-validation'
@@ -186,12 +202,14 @@ def predict(data: list,
                 performance_measures.remove('R2_score')
             if 'AUPR' in performance_measures:
                 performance_measures.remove('AUPR')
+            if len(performance_measures) == 0:
+                sys.exit("Error: The input 'performance_measures' is not valid according to 'test_type=one-by-one'.")
             if 'AUC' in performance_benchmark:
-                sys.exit('performance_benchmark is invalid')
+                sys.exit("Error: The input 'performance_benchmark' is not valid according to 'test_type=one-by-one'.")
             if 'R2_score' in performance_measures:
-                sys.exit('performance_benchmark is invalid')
+                sys.exit("Error: The input 'performance_benchmark' is not valid according to 'test_type=one-by-one'.")
             if 'AUPR' in performance_measures:
-                sys.exit('performance_benchmark is invalid')
+                sys.exit("Error: The input 'performance_benchmark' is not valid according to 'test_type=one-by-one'.")
 
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
@@ -219,6 +237,7 @@ def predict(data: list,
                            output_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
+                           labels=labels,
                            models=models,
                            instance_testing_size=instance_testing_size,
                            splitting_type=splitting_type,
@@ -239,6 +258,7 @@ def predict(data: list,
                                                        output_scaler=target_scaler,
                                                        feature_or_covariate_set=best_feature_or_covariate_set,
                                                        model_type=model_type,
+                                                       labels=labels,
                                                        model=best_model,
                                                        model_parameters=best_model_parameters,
                                                        instance_testing_size=instance_testing_size,
@@ -256,6 +276,7 @@ def predict(data: list,
                            output_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
+                           labels=labels,
                            models=models,
                            instance_testing_size=0,
                            splitting_type=splitting_type,
@@ -282,6 +303,7 @@ def predict(data: list,
                                        target_scaler=target_scaler,
                                        feature_or_covariate_set=best_feature_or_covariate_set,
                                        model_type=model_type,
+                                       labels=labels,
                                        model=best_model,
                                        model_parameters=best_model_parameters,
                                        scenario=scenario,
@@ -305,6 +327,7 @@ def predict(data: list,
                                output_scaler=target_scaler,
                                ordered_covariates_or_features=ordered_covariates_or_features,
                                model_type=model_type,
+                               labels=labels,
                                models=models,
                                instance_testing_size=1,
                                splitting_type=splitting_type,
@@ -330,6 +353,7 @@ def predict(data: list,
                                                            output_scaler=target_scaler,
                                                            feature_or_covariate_set=best_feature_or_covariate_set,
                                                            model_type=model_type,
+                                                           labels=labels,
                                                            model=best_model,
                                                            model_parameters=best_model_parameters,
                                                            instance_testing_size=1,
@@ -347,6 +371,7 @@ def predict(data: list,
                            output_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
+                           labels=labels,
                            models=models,
                            instance_testing_size=0,
                            splitting_type=splitting_type,
@@ -374,6 +399,7 @@ def predict(data: list,
                                            target_scaler=target_scaler,
                                            feature_or_covariate_set=best_feature_or_covariate_set,
                                            model_type=model_type,
+                                           labels=labels,
                                            model=best_model,
                                            model_parameters=best_model_parameters,
                                            scenario=scenario,
@@ -386,4 +412,5 @@ def predict(data: list,
 if __name__ == '__main__':
     predict(data=['historical_data h=1.csv', 'historical_data h=2.csv', 'historical_data h=3.csv'],
             forecast_horizon=4,
-            test_type='one-by-one')
+            test_type='one-by-one',
+            model_type='regression')
