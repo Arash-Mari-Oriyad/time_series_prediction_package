@@ -4,6 +4,9 @@ prediction
 # perforemance directory
 performance
 
+# test_process_backup.csv
+test_process_backup.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
