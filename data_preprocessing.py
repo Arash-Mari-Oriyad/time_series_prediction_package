@@ -110,6 +110,9 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
     '''
     mode = 'split' or 'add'
     '''
+    if futuristic_covariates == None:
+        return data, None, []
+    
     futuristic_covariate_list = list(futuristic_covariates.keys())
 
     data = rename_columns(data.copy(), column_identifier)
@@ -211,8 +214,11 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         future_data_table = future_data_table[list(temporal_data.columns)]
         
         future_data_table = future_data_table[future_data_table['spatial id level 1'].isin(temporal_data['spatial id level 1'].unique())]
-
+        
+        future_data_table = future_data_table[future_data_table[temporal_identifier_column_name]>max(temporal_data[temporal_identifier_column_name])]
+        
         temporal_data = temporal_data.append(future_data_table)
+        
         temporal_data.sort_values(by = [temporal_identifier_column_name, 'spatial id level 1'])
         if 'dummy temporal id' in temporal_data.columns:
             temporal_data = temporal_data.drop(['dummy temporal id'], axis = 1)
@@ -452,6 +458,10 @@ def find_granularity(data, temporal_scale_level):
 
 def prepare_data(data, column_identifier):
     
+    # initialize
+    spatial_data = None
+    temporal_data = None
+    
     if type(data) != dict :
 
         if type(data) == str :
@@ -554,7 +564,7 @@ def prepare_data(data, column_identifier):
                 print("\nWarning: Input spatial_data column names must match one of the formats:\n{'spatial id', 'spatial id level x', 'spatial covariate x'}")
                 print("or be specified in the column_identifier,but the names of some of the columns do not match any of the supported formats and are not mentioned in the column_identifier:\n{0}\nThis columns will be ignored.\n".format(spatial_data_extra_columns))
             spatial_data.drop(spatial_data_extra_columns, axis = 1, inplace = True)
-    
+            
     return temporal_data, spatial_data
 
 
@@ -1356,6 +1366,9 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             print("\nWarning: The specified history length and forecast horizon is too large for the number of recorded temporal units in the input data.\n")
         return None
     
+    if futuristic_covariates is None:
+        futuristic_covariates = {}
+    
     # in this loop we make historical data
     for covar in all_covariates:
         # if covariate is time dependant
@@ -1515,13 +1528,13 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
                 del futuristic_covariates[item]
 
             
-    # Removing invalid covariates from data and produce warning if is needed
-    invalid_futuristic_covariates = list(set(futuristic_covariates.keys()) - set(temporal_covariates))    
-    if (len(invalid_futuristic_covariates) > 0) and (verbose > 0):
-        print("\nWarning: The following keys in the futuristic_covariates do not exist in the input data covariates, and thus will be ignored:\n{0}\n".format(invalid_futuristic_covariates))
+        # Removing invalid covariates from data and produce warning if is needed
+        invalid_futuristic_covariates = list(set(futuristic_covariates.keys()) - set(temporal_covariates))    
+        if (len(invalid_futuristic_covariates) > 0) and (verbose > 0):
+            print("\nWarning: The following keys in the futuristic_covariates do not exist in the input data covariates, and thus will be ignored:\n{0}\n".format(invalid_futuristic_covariates))
 
-    futuristic_covariates = {key:value for key, value in futuristic_covariates.items() if key not in invalid_futuristic_covariates}
-        
+        futuristic_covariates = {key:value for key, value in futuristic_covariates.items() if key not in invalid_futuristic_covariates}
+
             
     ############# check the history_length input validity
     
