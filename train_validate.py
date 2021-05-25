@@ -299,9 +299,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         performance_benchmark = 'AUC'
         print("\nWarning: The specified performance_benchmark can not be measured for classification models. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
             
-    if (performance_benchmark == 'MAPE') and (zero_encounter_flag == 1):
-        performance_benchmark = 'MAE'
-        print("\nWarning: The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
+#     if (performance_benchmark == 'MAPE') and (zero_encounter_flag == 1):
+#         performance_benchmark = 'MAE'
+#         print("\nWarning: The input data contain some zero values for Target variable. Therefore 'MAPE' can not be used as a benchmark and the benchmark will be set to 'MAE'.\n")
     
     if number_of_user_defined_models>0:
         if (performance_benchmark == 'AIC') or (performance_benchmark == 'BIC'):
