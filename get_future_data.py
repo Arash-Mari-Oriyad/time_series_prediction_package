@@ -15,6 +15,8 @@ def get_future_data(data: list,
 
     _, _, granularity, _ = get_target_quantities(data[0].copy())
 
+    data = [d.sort_values(by=['temporal id', 'spatial id']) for d in data]
+
     future_data = [d.iloc[-(forecast_horizon * granularity * len(d['spatial id'].unique())):].copy() for d in data]
     data = [d.iloc[:-(forecast_horizon * granularity * len(d['spatial id'].unique()))].copy() for d in data]
 

@@ -384,7 +384,7 @@ def predict(data: list,
                            save_predictions=False,
                            verbose=0)
         best_data = data[best_history_length - 1].copy()
-        best_future_data = data[best_history_length - 1].copy()
+        best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
         best_future_data_temporal_ids = best_future_data['temporal id'].unique()
         for i in range(forecast_horizon):
