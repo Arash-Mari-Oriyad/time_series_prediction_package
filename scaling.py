@@ -18,9 +18,11 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
         if input_scaler == 'logarithmic':
             for feature in features:
                 if (len(test_data[test_data[feature]<0]) > 0) or (len(train_data[train_data[feature]<0]) > 0) :
-                    sys.exit("The features includes negative values. So the logarithmic input_scaler couldn't be applied.")
-                test_data.loc[:,(feature)] = list(np.log((test_data[feature] + 1).astype(float)))
-                train_data.loc[:,(feature)] = list(np.log((train_data[feature] + 1).astype(float)))
+                    pass
+                    # sys.exit("The features includes negative values. So the logarithmic input_scaler couldn't be applied.")
+                else:
+                    test_data.loc[:,(feature)] = list(np.log((test_data[feature] + 1).astype(float)))
+                    train_data.loc[:,(feature)] = list(np.log((train_data[feature] + 1).astype(float)))
 
         else:
             if input_scaler == 'standardize':       
