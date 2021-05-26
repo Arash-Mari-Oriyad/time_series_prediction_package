@@ -27,7 +27,7 @@ from get_target_quantities import get_target_quantities
 #####################################################################################################
 
 def report_performance(errors_dict, max_history, ordered_covariates_or_features,
-                       feature_sets_indices, performance_measures,
+                       feature_sets_indices, performance_measures, feature_selection_type,
                        models_name_list, forecast_horizon, data_temporal_size, report_type):
     
     output_data_frame = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + performance_measures)
@@ -43,6 +43,9 @@ def report_performance(errors_dict, max_history, ordered_covariates_or_features,
                     feature_original_name = ordered_covariates_or_features[history-1][index]
                     if feature_original_name.endswith(' t+'):
                         feature_original_name = feature_original_name.split(' t+')[0]
+                    if feature_selection_type == 'covariate' and len(feature_original_name.split(' '))>1:
+                        feature_original_name = feature_original_name.split(' ')[0]
+                        
                     feature_sets[feature_set_number].append(feature_original_name)
 
             temp = pd.DataFrame(columns = ['model name', 'history length', 'feature or covariate set'] + list(performance_measures))
@@ -673,11 +676,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if performance_report == True:
         
         report_performance(errors_dict = validation_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, performance_measures = performance_measures, models_name_list = models_name_list,
-                          forecast_horizon = forecast_horizon, data_temporal_size = number_of_temporal_units, report_type = 'validation')
+                          feature_sets_indices = feature_sets_indices, performance_measures = performance_measures, feature_selection_type = feature_selection_type,
+                          models_name_list = models_name_list, forecast_horizon = forecast_horizon, data_temporal_size = number_of_temporal_units, report_type = 'validation')
         report_performance(errors_dict = training_errors, max_history = max_history, ordered_covariates_or_features = ordered_covariates_or_features,
-                          feature_sets_indices = feature_sets_indices, performance_measures = performance_measures, models_name_list = models_name_list, 
-                          forecast_horizon = forecast_horizon, data_temporal_size = number_of_temporal_units, report_type = 'training')
+                          feature_sets_indices = feature_sets_indices, performance_measures = performance_measures, feature_selection_type = feature_selection_type,
+                          models_name_list = models_name_list, forecast_horizon = forecast_horizon, data_temporal_size = number_of_temporal_units, report_type = 'training')
         
     
     
