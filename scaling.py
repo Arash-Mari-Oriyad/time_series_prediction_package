@@ -17,12 +17,9 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
         
         if input_scaler == 'logarithmic':
             for feature in features:
-                if (len(test_data[test_data[feature]<0]) > 0) or (len(train_data[train_data[feature]<0]) > 0) :
-                    pass
-                    # sys.exit("The features includes negative values. So the logarithmic input_scaler couldn't be applied.")
-                else:
-                    test_data.loc[:,(feature)] = list(np.log((test_data[feature] + 1).astype(float)))
-                    train_data.loc[:,(feature)] = list(np.log((train_data[feature] + 1).astype(float)))
+                test_data.loc[:,(feature)] = list(np.sign(test_data[feature])*(np.log((np.abs(test_data[feature]) + 1).astype(float))))
+                train_data.loc[:,(feature)] = list(np.sign(train_data[feature])*(np.log((np.abs(train_data[feature]) + 1).astype(float))))
+            
 
         else:
             if input_scaler == 'standardize':       
@@ -41,10 +38,8 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
     if output_scaler is not None:
         
         if output_scaler == 'logarithmic':
-            if (len(test_data[test_data['Target']<0]) > 0) or (len(train_data[train_data['Target']<0]) > 0) :
-                sys.exit("The target variable includes negative values. So the logarithmic output_scaler couldn't be applied.")
-            test_data.loc[:,('Target')] = list(np.log((test_data['Target'] + 1).astype(float)))
-            train_data.loc[:,('Target')] = list(np.log((train_data['Target'] + 1).astype(float)))
+            test_data.loc[:,('Target')] = list(np.sign(test_data['Target'])*(np.log((np.abs(test_data['Target']) + 1).astype(float))))
+            train_data.loc[:,('Target')] = list(np.sign(train_data['Target'])*(np.log((np.abs(train_data['Target']) + 1).astype(float))))
             
         else:
             if output_scaler == 'standardize':       
@@ -78,6 +73,7 @@ def target_descale(scaled_data, base_data, scaler = 'logarithmic'):
     
     if scaler == 'logarithmic':
         output_data = np.exp(scaled_data) - 1
+        output_data = np.sign(scaled_data)*(np.exp(np.abs(scaled_data)) - 1)
         
     elif scaler == 'standardize':        
         scaleObject = StandardScaler()
