@@ -141,7 +141,7 @@ def save_prediction_data_frame(models_name_list, target_real_values, fold_valida
 def train_validate(data, ordered_covariates_or_features, instance_validation_size = 0.3, instance_testing_size = 0,
                    fold_total_number = 5, instance_random_partitioning = False,
                    forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
-                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', input_scaler = None, output_scaler = None,
+                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', feature_scaler = None, target_scaler = None,
                    labels = None, performance_report = True, save_predictions = True, verbose = 0):
     
     
@@ -351,8 +351,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
             if performance_mode is not None:
                 print("\nWarning: The 'cumulative' or 'moving average' performance_mode can not be used for the classification.")
             performance_mode = 'normal'
-        if output_scaler is not None:
-            output_scaler = None
+        if target_scaler is not None:
+            target_scaler = None
             print("\nWarning: Target scaling can not be performed for the classification.")
         if target_mode != 'normal':
             target_mode = 'normal'
@@ -521,8 +521,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                         target_real_values['training'][(fold_number, history, feature_set_number)] = training_data[needed_columns]
                         target_real_values['validation'][(fold_number, history, feature_set_number)] = validation_data[needed_columns]
                     
-                    # scaling features and target based on input_scaler and output_scaler
-                    training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, input_scaler = input_scaler, output_scaler = output_scaler)
+                    # scaling features and target based on feature_scaler and target_scaler
+                    training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, feature_scaler = feature_scaler, target_scaler = target_scaler)
                     
                     # add the current fold data, model name and model parameters to the list of pool function arguments
                     pool_list.append(tuple((training_data, validation_data, model, model_type, model_parameters, 0)))
@@ -557,11 +557,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                     fold_training_predictions[model_name][(fold_number, history, feature_set_number)] = target_descale(
                                                                                                         scaled_data = fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
                                                                                                         base_data = list(np.array(target_real_values['training'][(fold_number, history, feature_set_number)]['Target']).reshape(-1)), 
-                                                                                                        scaler = output_scaler)
+                                                                                                        scaler = target_scaler)
                     fold_validation_predictions[model_name][(fold_number, history, feature_set_number)] = target_descale(
                                                                                                         scaled_data = fold_validation_predictions[model_name][(fold_number, history, feature_set_number)], 
                                                                                                         base_data = list(np.array(target_real_values['training'][(fold_number, history, feature_set_number)]['Target']).reshape(-1)), 
-                                                                                                        scaler = output_scaler)
+                                                                                                        scaler = target_scaler)
                    
                     # get the normal values of the target variable and predictions for the cumulative, differential,
                     # and moving average modes
@@ -720,7 +720,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     best_model_parameters = models_parameter_list[best_model_number]
     
-    best_train_data, _ = data_scaling(train_data = best_train_data, test_data = best_train_data, input_scaler = input_scaler, output_scaler = output_scaler)
+    best_train_data, _ = data_scaling(train_data = best_train_data, test_data = best_train_data, feature_scaler = feature_scaler, target_scaler = target_scaler)
     
     _, _, best_trained_model = train_evaluate(training_data = best_train_data,
                                               validation_data = best_train_data,
@@ -729,4 +729,3 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                               verbose = 0)
     
     return best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, best_trained_model
-
