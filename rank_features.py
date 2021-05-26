@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 
 import configurations
+import get_target_quantities
 
 
 def rank_features(data,
@@ -17,6 +18,8 @@ def rank_features(data,
         pass
     else:
         sys.exit("The data input format is not valid.")
+
+    _, _, _, data = get_target_quantities.get_target_quantities(data.copy())
 
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
