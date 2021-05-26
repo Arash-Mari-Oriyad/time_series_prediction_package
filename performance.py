@@ -7,7 +7,12 @@ from math import log
 
 # mean absolute scaled error
 def mase(true_values, predicted_values, trivial_values):
-	return (metrics.mean_absolute_error(true_values, predicted_values))/(metrics.mean_absolute_error(true_values, trivial_values))
+	prediction_mae = metrics.mean_absolute_error(true_values, predicted_values)
+	trivial_mae = metrics.mean_absolute_error(true_values, trivial_values)
+	if trivial_mae == 0:
+		trivial_mae = 10e-5
+	
+	return prediction_mae/trivial_mae
 
 # ROC AUC for binary and multiclass classification
 def auc(true_values, y_score, labels=None):
