@@ -18,7 +18,7 @@ def train_test(
 		forecast_horizon, feature_or_covariate_set, 
 		history_length, model='knn', 
 		model_type='regression', model_parameters=None, 
-		input_scaler='logarithmic', output_scaler='logarithmic', 
+		feature_scaler='logarithmic', target_scaler='logarithmic', 
 		labels=None, performance_measures=['MAPE'], 
 		performance_mode='normal', performance_report=True, 
 		save_predictions=True, verbose=0):
@@ -53,9 +53,9 @@ def train_test(
 
 		model_parameters:	list<int> or None
 
-		input_scaler:	string
+		feature_scaler:	string
 
-		output_scaler:	string
+		target_scaler:	string
 
 		labels:	list<int> or None
 
@@ -112,11 +112,11 @@ def train_test(
 	if not(isinstance(model_parameters, list) or model_parameters == None):
 		raise TypeError("Expected a list or None value for model_parameters.")
 	
-	if not(isinstance(input_scaler, str) or input_scaler == None):
-		raise TypeError("Expected a string or None value for input_scaler.")
+	if not(isinstance(feature_scaler, str) or feature_scaler == None):
+		raise TypeError("Expected a string or None value for feature_scaler.")
 	
-	if not(isinstance(output_scaler, str) or output_scaler == None):
-		raise TypeError("Expected a string or None value for output_scaler.")
+	if not(isinstance(target_scaler, str) or target_scaler == None):
+		raise TypeError("Expected a string or None value for target_scaler.")
 
 	if not(isinstance(labels, list) or labels == None):
 		raise TypeError("Expected a list or None value for labels.")
@@ -192,8 +192,8 @@ def train_test(
 	training_data, testing_data = data_scaling(
 		train_data=training_data.copy(), 
 		test_data=testing_data.copy(), 
-		input_scaler=input_scaler, 
-		output_scaler=output_scaler
+		feature_scaler=feature_scaler, 
+		target_scaler=target_scaler
 	)
 
 	# training model with processed data	
@@ -211,13 +211,13 @@ def train_test(
 	training_predictions = target_descale(
 		scaled_data=list(training_predictions), 
 		base_data=base_data, 
-		scaler=output_scaler
+		scaler=target_scaler
 	)
 
 	testing_predictions = target_descale(
 		scaled_data=list(testing_predictions), 
 		base_data=base_data, 
-		scaler=output_scaler
+		scaler=target_scaler
 	)
 
 	# checking for some files to exit which will be used in the next phases
