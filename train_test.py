@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
-
 import pathlib
+import configurations
+
 from performance import performance
 from select_features import select_features
 from split_data import split_data
@@ -136,6 +137,18 @@ def train_test(
 	if not(isinstance(verbose, int)):
 		raise TypeError("Expected an integer (0 or 1 or 2) for verbose.")
 	################################
+
+	# classification checking
+	labels = None
+	if model_type == 'classification':
+		if not set(performance_measures) <= set(configurations.CLASSIFICATION_PERFORMANCE_MEASURES):
+			raise Exception("Error: The input 'performance_measures' is not valid according to 'model_type=classification'.")
+		if performance_mode != 'normal':
+			performance_mode = 'normal'
+			print("Warning: The input 'performance_mode' is set to 'normal' according to model_type=classification'.")
+		if target_scaler is not None:
+			target_scaler = None
+			print("Warning: The input 'target_scaler' is set to None according to model_type=classification'.")
 
 	# get some information of the data
 	target_mode, target_granularity, granularity, data = get_target_quantities(data=data.copy())
