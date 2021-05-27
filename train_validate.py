@@ -264,7 +264,12 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if (splitting_type == 'cross-validation') and ('MASE' in performance_measures):
         performance_measures.remove('MASE')
         print("\nWarning: The 'MASE' measure cannot be measured in cross-validation splitting mode.\n")
-
+    
+    if (splitting_type != 'cross-validation') and (instance_random_partitioning == True) and ('MASE' in performance_measures):
+        performance_measures.remove('MASE')
+        print("\nWarning: The 'MASE' measure cannot be measured in random partitioning mode.\n".)
+        
+    
     if (model_type == 'regression') and (any([item in ['likelihood', 'AUC', 'AUPR'] for item in performance_measures])):
         performance_measures = [item for item in performance_measures if item not in ['likelihood', 'AUC', 'AUPR']]
         print("\nWarning: Some of the measures in the performance_measures can not be measured for {0} task and will be ignored.\n".format(model_type))
@@ -406,7 +411,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         if (type(fold_total_number) != int) or (fold_total_number <= 1):
             sys.exit("The fold_total_number must be an integer greater than 1.")
 
-    # check validity of instance_validation_size and instance_testing_size
+    # check validity of instance_validation_size
     elif splitting_type == 'training-validation':
     
         if type(instance_validation_size) == float:
@@ -415,14 +420,15 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 
         elif (type(instance_validation_size) != int):
             sys.exit("The type of instance_validation_size must be int or float.")
-        
-        if type(instance_testing_size) == float:
-            if instance_testing_size > 1:
-                sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
-        elif (type(instance_testing_size) != int):
-            sys.exit("The type of instance_testing_size must be int or float.")
     else:
         sys.exit("The specified splitting_type is ambiguous. The supported values are 'training-validation' and 'cross-validation'.")
+    
+    # check validity of instance_testing_size
+    if type(instance_testing_size) == float:
+        if instance_testing_size > 1:
+            sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
+    elif type(instance_testing_size) != int:
+        sys.exit("The type of instance_testing_size must be int or float.")
     
     # for non cross val splitting_type, the fold_total_number  will be set to 1, to perform the prediction process only one time
     if splitting_type != 'cross-validation':
@@ -433,7 +439,22 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         split_data_splitting_type = 'fold'
     else:
         split_data_splitting_type = 'instance'
-        
+    
+    ############## check the possibility of data deficiency
+    
+    if (performance_benchmark == 'MASE') and (splitting_type != 'cross-validation'):
+        for data in data_list:
+            temp_train, temp_val , temp_test , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
+                                                      instance_validation_size = instance_validation_size, fold_total_number = None, fold_number = None, splitting_type = 'instance',
+                                                      instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
+            if len(temp_train['temporal id'].unique()) < forecast_horizon + 1:
+                if zero_encounter_flag == 0:
+                    performance_benchmark = 'MAPE'
+                else:
+                    performance_benchmark = 'MAE'
+                print("\nWarning: There are not enough temporal units in the data to measure 'MASE'. Thus the performance_benchmark will be set to '{0}'.\n".format(performance_benchmark))
+            
+    
     #################################################### initializing
         
     models_best_history_length = {model_name : None for model_name in models_name_list} # best_history_length for each model
@@ -590,6 +611,8 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                     # calculate and store the performance measure for the current fold
                     for measure in performance_measures:
                         
+                        train_data_deficient_flag = 0
+                        validation_data_deficient_flag = 0
                         train_df = performance_target_real_values['training'][(fold_number, history, feature_set_number)]
                         validation_df = performance_target_real_values['validation'][(fold_number, history, feature_set_number)]
 
@@ -610,23 +633,36 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                                 train_prediction = performance_fold_training_predictions[model_name][(fold_number, history, feature_set_number)],
                                 validation_prediction = performance_fold_validation_predictions[model_name][(fold_number, history, feature_set_number)], 
                                 forecast_horizon = forecast_horizon, granularity = granularity)
-
+                            
+                            if len(train_trivial_values)<1:
+                                train_data_deficient_flag = 1
+                            if len(validation_trivial_values)<1:
+                                validation_data_deficient_flag = 1
+                                if performance_benchmark == 'MASE':
+                                    raise Exception("There are not enough temporal units in the data to measure 'MASE'.")
 
                         
-                        fold_validation_error[fold_number][measure] = performance(true_values = validation_true_values,
-                                                                                  predicted_values = validation_predicted_values, 
-                                                                                  performance_measures = list([measure]), 
-                                                                                  trivial_values = validation_trivial_values,
-                                                                                  model_type = model_type,
-                                                                                  num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
-                                                                                  labels = labels)
-                        fold_training_error[fold_number][measure] = performance(true_values = train_true_values,
-                                                                                  predicted_values = train_predicted_values,
-                                                                                  performance_measures = list([measure]),
-                                                                                  trivial_values = train_trivial_values,
-                                                                                  model_type = model_type,
-                                                                                  num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
-                                                                                  labels = labels)
+                        if validation_data_deficient_flag ==0:
+                            fold_validation_error[fold_number][measure] = performance(true_values = validation_true_values,
+                                                                                      predicted_values = validation_predicted_values, 
+                                                                                      performance_measures = list([measure]), 
+                                                                                      trivial_values = validation_trivial_values,
+                                                                                      model_type = model_type,
+                                                                                      num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
+                                                                                      labels = labels)
+                        else:
+                            fold_validation_error[fold_number][measure] = [None]
+                        
+                        if train_data_deficient_flag ==0:
+                            fold_training_error[fold_number][measure] = performance(true_values = train_true_values,
+                                                                                      predicted_values = train_predicted_values,
+                                                                                      performance_measures = list([measure]),
+                                                                                      trivial_values = train_trivial_values,
+                                                                                      model_type = model_type,
+                                                                                      num_params = number_of_parameters[model_name][(fold_number, history, feature_set_number)],
+                                                                                      labels = labels)
+                        else:
+                            fold_training_error[fold_number][measure] = [None]
             
                 # calculating and storing the cross-validation final performance measure by taking the average of the folds performance measure
                 for measure in performance_measures:
