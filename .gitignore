@@ -4,6 +4,9 @@ prediction
 # perforemance directory
 performance
 
+# zip files
+*.zip
+
 # test_process_backup.csv
 test_process_backup.csv
 
