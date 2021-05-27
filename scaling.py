@@ -2,29 +2,29 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_scaler = 'logarithmic'):
+def data_scaling(train_data, test_data, feature_scaler = 'logarithmic', target_scaler = 'logarithmic'):
     
     '''
-    output_scaler = 'logarithmic' or 'normalize' or 'standardize' or None : the scaler used to scale target variable
-    input_scaler = 'logarithmic' or 'normalize' or 'standardize' or None : the scaler used to scale features
+    target_scaler = 'logarithmic' or 'normalize' or 'standardize' or None : the scaler used to scale target variable
+    feature_scaler = 'logarithmic' or 'normalize' or 'standardize' or None : the scaler used to scale features
     '''
-    if input_scaler is not None:
+    if feature_scaler is not None:
         
         columns = list(train_data.columns)
         features = [column for column in columns if column not in ['spatial id','temporal id','Target','Normal target']]
         train_data_features = train_data[features]
         test_data_features = test_data[features]
         
-        if input_scaler == 'logarithmic':
+        if feature_scaler == 'logarithmic':
             for feature in features:
                 test_data.loc[:,(feature)] = list(np.sign(test_data[feature])*(np.log((np.abs(test_data[feature]) + 1).astype(float))))
                 train_data.loc[:,(feature)] = list(np.sign(train_data[feature])*(np.log((np.abs(train_data[feature]) + 1).astype(float))))
             
 
         else:
-            if input_scaler == 'standardize':       
+            if feature_scaler == 'standardize':       
                 scaleObject = StandardScaler()
-            if input_scaler == 'normalize':        
+            if feature_scaler == 'normalize':        
                 scaleObject = MinMaxScaler()
             
             scaleObject.fit(train_data_features)
@@ -35,16 +35,16 @@ def data_scaling(train_data, test_data, input_scaler = 'logarithmic', output_sca
             train_data = pd.concat([train_data[['spatial id', 'temporal id', 'Target','Normal target']].reset_index(drop = True), pd.DataFrame(train_data_features, columns = features).reset_index(drop = True)], axis=1)
         
         
-    if output_scaler is not None:
+    if target_scaler is not None:
         
-        if output_scaler == 'logarithmic':
+        if target_scaler == 'logarithmic':
             test_data.loc[:,('Target')] = list(np.sign(test_data['Target'])*(np.log((np.abs(test_data['Target']) + 1).astype(float))))
             train_data.loc[:,('Target')] = list(np.sign(train_data['Target'])*(np.log((np.abs(train_data['Target']) + 1).astype(float))))
             
         else:
-            if output_scaler == 'standardize':       
+            if target_scaler == 'standardize':       
                 scaleObject = StandardScaler()
-            if output_scaler == 'normalize':        
+            if target_scaler == 'normalize':        
                 scaleObject = MinMaxScaler()
         
             train_data_target = np.array(train_data['Target']).reshape(len(train_data), 1)
