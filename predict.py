@@ -28,7 +28,7 @@ def predict(data: list,
             fold_total_number: int = 5,
             performance_benchmark: str = 'MAPE',
             performance_mode: str = 'normal',
-            performance_measures: str = ['MAPE'],
+            performance_measures: list = ['MAPE'],
             scenario: str or None = 'current',
             validation_performance_report: bool = True,
             testing_performance_report: bool = True,
@@ -233,8 +233,8 @@ def predict(data: list,
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
-                           input_scaler=feature_scaler,
-                           output_scaler=target_scaler,
+                           feature_scaler=feature_scaler,
+                           target_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
                            labels=labels,
@@ -254,8 +254,8 @@ def predict(data: list,
         best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
                                                        forecast_horizon=forecast_horizon,
                                                        history_length=best_history_length,
-                                                       input_scaler=feature_scaler,
-                                                       output_scaler=target_scaler,
+                                                       feature_scaler=feature_scaler,
+                                                       target_scaler=target_scaler,
                                                        feature_or_covariate_set=best_feature_or_covariate_set,
                                                        model_type=model_type,
                                                        labels=labels,
@@ -272,8 +272,8 @@ def predict(data: list,
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
-                           input_scaler=feature_scaler,
-                           output_scaler=target_scaler,
+                           feature_scaler=feature_scaler,
+                           target_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
                            labels=labels,
@@ -316,15 +316,19 @@ def predict(data: list,
         if isinstance(instance_testing_size, float):
             instance_testing_size = int(instance_testing_size * len(data_temporal_ids[0]))
         for i in range(instance_testing_size):
+            print(150 * '#')
+            print('i =', i + 1)
             # train_validate
+            print(100 * '-')
+            print('Train Validate Process')
             best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
                 train_validate(data=
                                [d[d['temporal id'].isin((
                                    data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i]))].copy()
                                 for index, d in enumerate(data)],
                                forecast_horizon=forecast_horizon,
-                               input_scaler=feature_scaler,
-                               output_scaler=target_scaler,
+                               feature_scaler=feature_scaler,
+                               target_scaler=target_scaler,
                                ordered_covariates_or_features=ordered_covariates_or_features,
                                model_type=model_type,
                                labels=labels,
@@ -341,16 +345,18 @@ def predict(data: list,
                                verbose=verbose)
 
             # train_test
+            print(100 * '-')
+            print('Train Test Process')
             d = data[best_history_length - 1].copy()
             best_model, best_model_parameters = train_test(data=d[d['temporal id'].isin(
-                                                                  (data_temporal_ids[best_history_length - 1][:]
-                                                                   if i == 0
-                                                                   else data_temporal_ids[best_history_length - 1][:-i]
-                                                                   ))].copy(),
+                (data_temporal_ids[best_history_length - 1][:]
+                 if i == 0
+                 else data_temporal_ids[best_history_length - 1][:-i]
+                 ))].copy(),
                                                            forecast_horizon=forecast_horizon,
                                                            history_length=best_history_length,
-                                                           input_scaler=feature_scaler,
-                                                           output_scaler=target_scaler,
+                                                           feature_scaler=feature_scaler,
+                                                           target_scaler=target_scaler,
                                                            feature_or_covariate_set=best_feature_or_covariate_set,
                                                            model_type=model_type,
                                                            labels=labels,
@@ -364,11 +370,13 @@ def predict(data: list,
                                                            verbose=verbose)
 
         # predict_future
+        print(100 * '-')
+        print('Train Validate Process')
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
-                           input_scaler=feature_scaler,
-                           output_scaler=target_scaler,
+                           feature_scaler=feature_scaler,
+                           target_scaler=target_scaler,
                            ordered_covariates_or_features=ordered_covariates_or_features,
                            model_type=model_type,
                            labels=labels,
@@ -388,10 +396,14 @@ def predict(data: list,
         best_data_temporal_ids = best_data['temporal id'].unique()
         best_future_data_temporal_ids = best_future_data['temporal id'].unique()
         for i in range(forecast_horizon):
+            print(150 * '*')
+            print('i =', i + 1)
             temp = forecast_horizon - i - 1
+            print(100 * '-')
+            print('Predict Future Process')
             trained_model = predict_future(data=best_data[best_data['temporal id'].isin(
-                                                          (best_data_temporal_ids if temp == 0
-                                                           else best_data_temporal_ids[:-temp]))].copy(),
+                (best_data_temporal_ids if temp == 0
+                 else best_data_temporal_ids[:-temp]))].copy(),
                                            future_data=best_future_data[best_future_data['temporal id'] ==
                                                                         best_future_data_temporal_ids[i]].copy(),
                                            forecast_horizon=forecast_horizon,
@@ -410,7 +422,26 @@ def predict(data: list,
 
 
 if __name__ == '__main__':
-    predict(data=['historical_data h=1.csv', 'historical_data h=2.csv', 'historical_data h=3.csv'],
-            forecast_horizon=4,
+    # input_data = [f'usa_data/historical_data h={i}.csv' for i in range(1, 4)]
+    input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 11)]
+    predict(data=input_data,
+            forecast_horizon=14,
+            feature_scaler='logarithmic',
+            target_scaler=None,
             test_type='one-by-one',
-            model_type='regression')
+            feature_sets={'covariate': 'mRMR'},
+            model_type='regression',
+            models=['knn', 'gbm'],
+            instance_testing_size=0.2,
+            splitting_type='training-validation',
+            instance_validation_size=0.3,
+            instance_random_partitioning=False,
+            fold_total_number=5,
+            performance_benchmark='MAE',
+            performance_mode='normal',
+            performance_measures=['MAPE', 'MAE'],
+            scenario='current',
+            validation_performance_report=True,
+            testing_performance_report=True,
+            save_predictions=True,
+            verbose=0)
