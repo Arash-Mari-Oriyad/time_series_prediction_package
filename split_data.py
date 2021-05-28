@@ -24,7 +24,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
         try:
             data = pd.read_csv(data)
         except FileNotFoundError:
-            sys.exit("File '{0}' does not exist.".format(data))
+            raise FileNotFoundError("File '{0}' does not exist.".format(data))
         
     
     # initializing
@@ -34,11 +34,6 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
     gap_data = None
     
     gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
-    
-    if (splitting_type == 'fold') and (type(instance_testing_size) in [int,float]):
-        if (instance_testing_size > 0):
-            sys.exit("The cross validation method must not to be used for the splitting data to the training and testing set.")
-    
     
     number_of_spatial_units = len(data['spatial id'].unique())
     number_of_temporal_units = len(data['temporal id'].unique())
@@ -50,14 +45,14 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
         # check the type of instance_testing_size and instance_validation_size
         if type(instance_testing_size) == float:
             if instance_testing_size > 1:
-                sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
+                raise ValueError("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
             instance_testing_size = round(instance_testing_size * (number_of_temporal_units))
         elif (type(instance_testing_size) != int) and (instance_testing_size is not None):
-            sys.exit("The type of instance_testing_size must be int or float.")
+            raise TypeError("The type of instance_testing_size must be int or float.")
 
         if type(instance_validation_size) == float:
             if instance_validation_size > 1:
-                sys.exit("The float instance_validation_size will be interpreted to the proportion of data which is considered as validation set and must be less than 1.")
+                raise ValueError("The float instance_validation_size will be interpreted to the proportion of data which is considered as validation set and must be less than 1.")
             
             if instance_testing_size is not None:
                 instance_validation_size = round(instance_validation_size * (number_of_temporal_units - instance_testing_size))
@@ -65,12 +60,12 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
                 instance_validation_size = round(instance_validation_size * (number_of_temporal_units))
                 
         elif (type(instance_validation_size) != int) and (instance_validation_size is not None):
-            sys.exit("The type of instance_validation_size must be int or float.")                
+            raise TypeError("The type of instance_validation_size must be int or float.")                
                 
                 
         if (instance_testing_size is not None) and (instance_validation_size is None):
-            if (instance_testing_size*number_of_spatial_units) > len(data):
-                sys.exit("The specified instance_testing_size is too large for input data.")
+            if (instance_testing_size > 0) and ((instance_testing_size + gap)*number_of_spatial_units >= len(data)):
+                raise ValueError("The specified instance_testing_size is too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
             gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
             
@@ -79,11 +74,11 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             else:
                 training_data = data
             if verbose > 0:
-                print("The splitting of the data is running. The training set includes {0}, and the testing set includes {1} instances.\n".format(len(training_data),len(testing_data)))
+                print("\nThe splitting of the data is running. The training set includes {0}, and the testing set includes {1} instances.\n".format(len(training_data),len(testing_data)))
         
         elif (instance_testing_size is None) and (instance_validation_size is not None):
-            if (instance_validation_size*number_of_spatial_units) > len(data):
-                sys.exit("The specified instance_validation_size is too large for input data.")
+            if (instance_validation_size*number_of_spatial_units) >= len(data):
+                raise ValueError("The specified instance_validation_size is too large for input data.")
             # shuffling the temporal ids in the data for random partitioning
             if instance_random_partitioning == True:
                 data = temporal_shuffle(data.copy())
@@ -93,11 +88,11 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             else:
                 training_data = data
             if verbose > 0:
-                print("The splitting of the data is running. The training set includes {0}, and the validation set includes {1} instances.\n".format(len(training_data),len(validation_data)))
+                print("\nThe splitting of the data is running. The training set includes {0}, and the validation set includes {1} instances.\n".format(len(training_data),len(validation_data)))
         
         elif (instance_testing_size is not None) and (instance_validation_size is not None):
-            if ((instance_testing_size + instance_validation_size)*number_of_spatial_units) > len(data):
-                sys.exit("The specified instance_testing_size and instance_validation_size are too large for input data.")
+            if ((instance_testing_size + instance_validation_size + gap)*number_of_spatial_units) >= len(data):
+                raise ValueError("The specified instance_testing_size and instance_validation_size are too large for input data.")
             testing_data = data.tail(instance_testing_size * number_of_spatial_units).copy()
             gap_data = data.iloc[-((instance_testing_size + gap) * number_of_spatial_units):-((instance_testing_size) * number_of_spatial_units)].copy()
             
@@ -113,19 +108,19 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             else:
                 training_data = train_data
             if verbose > 0:
-                print("The splitting of the data is running. The training set, validation set, and testing set includes {0}, {1}, {2} instances respectively.\n".format(len(training_data),len(validation_data),len(testing_data)))
+                print("\nThe splitting of the data is running. The training set, validation set, and testing set includes {0}, {1}, {2} instances respectively.\n".format(len(training_data),len(validation_data),len(testing_data)))
         
         else:
-            sys.exit("If the type of splitting is 'instance' at least one of the instance_validation_size and instance_testing_size must have a value.")
+            raise Exception("If the type of splitting is 'instance' at least one of the instance_validation_size and instance_testing_size must have a value.")
             
     elif splitting_type == 'fold':
         
         if (fold_total_number is None) or (fold_number is None):
-            sys.exit("if the splitting_type is 'fold', the fold_total_number and fold_number must be specified.")
+            raise Exception("if the splitting_type is 'fold', the fold_total_number and fold_number must be specified.")
         if (type(fold_total_number) != int) or (type(fold_number) != int):
-            sys.exit("The fold_total_number and fold_number must be of type int.")
+            raise TypeError("The fold_total_number and fold_number must be of type int.")
         elif (fold_number > fold_total_number) or (fold_number < 1):
-            sys.exit("The fold_number must be a number in a range between 1 and fold_total_number.")
+            raise ValueError("The fold_number must be a number in a range between 1 and fold_total_number.")
             
         
         temporal_unit_list = data['temporal id'].unique()
@@ -146,7 +141,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
             print("\nThe splitting of the data is running. The validation set is fold number {0} of the total of {1} folds. Each fold includes {2} instances.\n".format(fold_number, fold_total_number, (len(validation_fold_temporal_units)*number_of_spatial_units)))
         
     else:
-        sys.exit("The splitting type must be 'instance' or 'fold'.")
+        raise ValueError("The splitting type must be 'instance' or 'fold'.")
         
     return training_data, validation_data, testing_data, gap_data
 
