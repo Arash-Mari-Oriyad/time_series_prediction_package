@@ -267,7 +267,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     if (splitting_type != 'cross-validation') and (instance_random_partitioning == True) and ('MASE' in performance_measures):
         performance_measures.remove('MASE')
-        print("\nWarning: The 'MASE' measure cannot be measured in random partitioning mode.\n".)
+        print("\nWarning: The 'MASE' measure cannot be measured in random partitioning mode.\n")
         
     
     if (model_type == 'regression') and (any([item in ['likelihood', 'AUC', 'AUPR'] for item in performance_measures])):
