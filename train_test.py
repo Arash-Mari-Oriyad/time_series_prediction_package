@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pathlib
+import re
 import configurations
 
 from performance import performance
@@ -139,7 +140,6 @@ def train_test(
 	################################
 
 	# classification checking
-	labels = None
 	if model_type == 'classification':
 		if not set(performance_measures) <= set(configurations.CLASSIFICATION_PERFORMANCE_MEASURES):
 			raise Exception("Error: The input 'performance_measures' is not valid according to 'model_type=classification'.")
@@ -327,11 +327,30 @@ def train_test(
 	
 	# saving performance (same approach for both regression and classification)
 	performance_file_name = 'performance/test process/test performance report forecast horizon = %s.csv' % (forecast_horizon)
+
+	# selecting temporal and futuristic features or covariates from the feature_or_covariate_set list
+	check_list = [item for item in feature_or_covariate_set if item.count(' ') != 0]
+
+	# type_flag for detecting feature type (False) or covariate type (True)
+	# check if all elements in check_list meet the condition for being covariate type
+	type_flag = all(re.search(' t$', element) or re.search(' t[+]$', element) for element in check_list)
+
+	processed_feature_or_covariate_set = []	# a list to be saved in performance report file
+
+	if type_flag == 1:
+		for item in feature_or_covariate_set:
+			if item.count(' ') != 0:
+				processed_feature_or_covariate_set.append(item[:-2])
+			else:
+				processed_feature_or_covariate_set.append(item)
+	else:
+		processed_feature_or_covariate_set = feature_or_covariate_set.copy()
+
 	if performance_report == True:
 		df_data = {
 			'model name': list([model_name]), 
 			'history length': list([history_length]), 
-			'feature or covariate set': ', '.join(feature_or_covariate_set)
+			'feature or covariate set': ', '.join(processed_feature_or_covariate_set)
 		}
 		df = pd.DataFrame(df_data, columns=list(df_data.keys()))
 		for i in range(len(performance_measures)):
