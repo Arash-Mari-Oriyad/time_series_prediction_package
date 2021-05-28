@@ -153,6 +153,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     
     ############################ reading and validating inputs
     
+    ############## forecast horizon
+    
+    if (type(forecast_horizon) != int) or (forecast_horizon<=0):
+        raise ValueError("The forecast_horizon input must be an integer greater than 0.")
+    
     ############## data input
     
     data_list = []
@@ -164,11 +169,11 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
                 try:
                     data_list.append(pd.read_csv(data[history-1]))
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.".format(data[history-1]))
+                    raise FileNotFoundError("File '{0}' does not exist.".format(data[history-1]))
             else:
-                sys.exit("The input data must be a list of DataFrames or strings of data addresses.")
+                raise ValueError("The input data must be a list of DataFrames or strings of data addresses.")
     else:
-        sys.exit("The input data must be a list of DataFrames or strings of data addresses.")
+        raise ValueError("The input data must be a list of DataFrames or strings of data addresses.")
         
     # find the target mode, target granularity, and granularity by decoding target variable column name
     for i in range(len(data_list)):
@@ -184,7 +189,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     ############## models input
     
     if type(models) != list:
-        sys.exit("The models must be of type list.")
+        raise TypeError("The models input must be of type list.")
         
     number_of_user_defined_models = 0
     
@@ -225,7 +230,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         # if the item is user defined function
         elif callable(item):
             if item.__name__ in supported_models_name:
-                sys.exit("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
+                raise Exception("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
             models_list.append(item)
             models_name_list.append(item.__name__)
             models_parameter_list.append(None)
@@ -235,12 +240,12 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
             print("\nWarning: The items in the models list must be of type string, dict or callable. The incompatible cases will be ignored.\n")
     
     if len(models_list) < 1:
-        sys.exit("There is no item in the models list or the items are invalid.")
+        raise ValueError("There is no item in the models list or the items are invalid.")
         
     ############## performance measure input
     
     if (type(performance_measures) != list) and (performance_measures is not None):
-        sys.exit("The performance_measures must be of type list.")
+        raise TypeError("The performance_measures must be of type list.")
         
     zero_encounter_flag = 0
     for history in range(1,max_history+1):
@@ -279,11 +284,9 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         print("\nWarning: Some of the measures in the performance_measures can not be measured for {0} task and will be ignored.\n".format(model_type))
     
     if len(performance_measures) < 1:
-        sys.exit("No valid measure is specified.")
+        raise ValueError("No valid measure is specified.")
         
     ############## performance_benchmark input
-    
-    ## checking validity of performance_benchmark
     
     if (performance_benchmark not in supported_performance_measures) or (performance_benchmark is None):
         if model_type == 'regression':
@@ -346,12 +349,19 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         
     if performance_benchmark not in performance_measures:
         performance_measures.append(performance_benchmark)
+
     
-    ############## model_type input
+    ############## model_type input and labels
     
     if model_type == 'classification':
-        labels = list(data_list[0]['Normal target'].unique())
-        labels.sort()
+        if labels is None:
+            labels = list(data_list[0]['Normal target'].unique())
+            labels.sort()
+        elif type(labels) != list:
+            raise TypeError("The labels input must be of type list.")
+        elif any([len(set(data['Normal target'].dropna().unique())-set(labels))>0 for data in data_list]):
+            raise ValueError("Some of the class labels in the input data are not in labels input.")
+        
         if performance_mode != 'normal':
             if performance_mode is not None:
                 print("\nWarning: The 'cumulative' or 'moving average' performance_mode can not be used for the classification.")
@@ -364,7 +374,7 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     elif model_type == 'regression':
         labels = []
     else:
-        sys.exit("The specified model_type is not valid. The supported values are 'regression' and 'classification'.")
+        raise ValueError("The specified model_type is not valid. The supported values are 'regression' and 'classification'.")
     
     
     ############## ordered_covariates_or_features and feature_sets_indices
@@ -375,13 +385,13 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         if all(second_level_type_list):
             feature_selection_type = 'feature'
             if len(ordered_covariates_or_features) != max_history:
-                sys.exit("The number of feature lists in ordered_covariates_or_features does not match the number of input data.")
+                raise ValueError("The number of feature lists in ordered_covariates_or_features does not match the number of input data.")
         elif all(second_level_type_str):
             feature_selection_type = 'covariate'
             repeated_list = [ordered_covariates_or_features for history in range(max_history)]
             ordered_covariates_or_features = repeated_list
     else:
-        sys.exit("The ordered_covariates_or_features must be of type list.")
+        raise TypeError("The ordered_covariates_or_features must be of type list.")
 
     feature_sets_indices = [] # feature_set_indices set of all history lengths
     for history in range(max_history):
@@ -407,28 +417,31 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     if splitting_type == 'cross-validation':
 
         if fold_total_number is None:
-            sys.exit("if the splitting_type is 'cross-validation', the fold_total_number must be specified.")
+            raise Exception("if the splitting_type is 'cross-validation', the fold_total_number must be specified.")
         if (type(fold_total_number) != int) or (fold_total_number <= 1):
-            sys.exit("The fold_total_number must be an integer greater than 1.")
+            raise ValueError("The fold_total_number must be an integer greater than 1.")
 
     # check validity of instance_validation_size
     elif splitting_type == 'training-validation':
     
         if type(instance_validation_size) == float:
             if instance_validation_size > 1:
-                sys.exit("The float instance_validation_size will be interpreted to the proportion of data which is considered as validation set and must be less than 1.")
+                raise ValueError("The float instance_validation_size will be interpreted to the proportion of data which is considered as validation set and must be less than 1.")
                 
         elif (type(instance_validation_size) != int):
-            sys.exit("The type of instance_validation_size must be int or float.")
+            raise TypeError("The type of instance_validation_size must be int or float.")
     else:
-        sys.exit("The specified splitting_type is ambiguous. The supported values are 'training-validation' and 'cross-validation'.")
+        raise ValueError("The specified splitting_type is ambiguous. The supported values are 'training-validation' and 'cross-validation'.")
     
     # check validity of instance_testing_size
     if type(instance_testing_size) == float:
         if instance_testing_size > 1:
-            sys.exit("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
+            raise ValueError("The float instance_testing_size will be interpreted to the proportion of data that is considered as the test set and must be less than 1.")
     elif type(instance_testing_size) != int:
-        sys.exit("The type of instance_testing_size must be int or float.")
+        raise TypeError("The type of instance_testing_size must be int or float.")
+    
+    if type(instance_random_partitioning) != bool:
+        raise TypeError("instance_random_partitioning must be type boolean.")
     
     # for non cross val splitting_type, the fold_total_number  will be set to 1, to perform the prediction process only one time
     if splitting_type != 'cross-validation':
@@ -439,7 +452,26 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         split_data_splitting_type = 'fold'
     else:
         split_data_splitting_type = 'instance'
+        
+    ############## feature and target scaler, performance mode, performance_report, save_predictions, verbose
     
+    if target_scaler not in ['logarithmic', 'normalize', 'standardize', None]:
+        raise ValueError("The target_scaler input is not valid. The supported values are 'logarithmic', 'normalize', 'standardize', or None for no scaling.")
+    if feature_scaler not in ['logarithmic', 'normalize', 'standardize', None]:
+        raise ValueError("The feature_scaler input is not valid. The supported values are 'logarithmic', 'normalize', 'standardize', or None for no scaling.")
+    
+    if not any(performance_mode.startswith(item) for item in ['normal', 'cumulative', 'moving average']):
+        raise ValueError("The performance_mode input is not valid.")
+        
+    if type(performance_report) != bool:
+        raise TypeError("performance_report must be type boolean.")
+        
+    if type(save_predictions) != bool:
+        raise TypeError("save_predictions must be type boolean.")
+    
+    if type(verbose) != int:
+        raise TypeError("verbose must be of type int.")
+        
     ############## check the possibility of data deficiency
     
     if (performance_benchmark == 'MASE') and (splitting_type != 'cross-validation'):
