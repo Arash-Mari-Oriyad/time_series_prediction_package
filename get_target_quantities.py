@@ -10,7 +10,7 @@ def get_target_quantities(data: pd.DataFrame):
 
     target_mode, target_granularity, granularity = None, 1, 1
     target_column_name = list(filter(lambda x: x.startswith('Target '), data.columns.values))[0]
-    temp = target_column_name.split(' ')[-1][1:-1]
+    temp = target_column_name.split('(')[-1][:-1]
     if temp.startswith('augmented'):
         granularity = int(temp.split(' ')[2])
         temp = temp[temp.index('-') + 2:]
