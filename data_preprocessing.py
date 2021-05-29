@@ -123,9 +123,9 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         temporal_covariates = list(filter(lambda x:x.startswith('temporal covariate'), data.columns))
     else:
         if 'spatial covariates' in column_identifier.keys():
-            spatial_covariates = list(column_identifier['spatial covariates'])
+            spatial_covariates = [item for item in list(column_identifier['spatial covariates']) if item in data.columns]
         else: spatial_covariates = []
-        temporal_covariates = list(column_identifier['temporal covariates'])
+        temporal_covariates = [item for item in list(column_identifier['temporal covariates']) if item in data.columns]
         
     id_columns = list(filter(lambda x: x.startswith(('spatial id','temporal id')),data.columns))
     spatial_id_columns = list(filter(lambda x: x.startswith(('spatial id')),data.columns))
@@ -482,11 +482,11 @@ def prepare_data(data, column_identifier):
 
         # if type of each column is specified in column_identifier
         if column_identifier is not None:
-            temporal_columns = list(filter(lambda x: x.startswith(('temporal id', 'spatial id','target')), data.columns)) + column_identifier['temporal covariates']
+            temporal_columns = list(filter(lambda x: x.startswith(('temporal id', 'spatial id','target')), data.columns)) + [item for item in column_identifier['temporal covariates'] if item in data.columns]
             temporal_data = data[temporal_columns]
             # if data includes spatial covariates
             if 'spatial covariates' in column_identifier.keys():
-                spatial_columns = list(filter(lambda x: x.startswith('spatial id'), data.columns)) + column_identifier['spatial covariates']
+                spatial_columns = list(filter(lambda x: x.startswith('spatial id'), data.columns)) + [item for item in column_identifier['spatial covariates'] if item in data.columns]
                 spatial_data = data[spatial_columns].drop_duplicates(subset = ['spatial id level 1']).copy()
 
         # if type of columns are clear based on column name
@@ -1228,9 +1228,9 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
         temporal_covariates = list(filter(lambda x:x.startswith('temporal covariate'), data.columns))
     else:
         if 'spatial covariates' in column_identifier.keys():
-            spatial_covariates = list(column_identifier['spatial covariates'])
+            spatial_covariates = [item for item in list(column_identifier['spatial covariates']) if item in data.columns]
         else: spatial_covariates = []
-        temporal_covariates = list(column_identifier['temporal covariates'])
+        temporal_covariates = [item for item in list(column_identifier['temporal covariates']) if item in data.columns]
         
     all_covariates = list(filter(lambda x: not x.startswith(('temporal id', 'spatial id', 'target', 'Normal target')), data.columns))
     extra_columns = list(set(all_covariates)-set(spatial_covariates + temporal_covariates))
