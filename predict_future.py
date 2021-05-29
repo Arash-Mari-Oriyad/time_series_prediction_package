@@ -117,8 +117,8 @@ def predict_future(data: pd.DataFrame or str,
 
     scaled_training_data, scaled_testing_data = data_scaling(train_data=training_data.copy(),
                                                              test_data=testing_data.copy(),
-                                                             input_scaler=feature_scaler,
-                                                             output_scaler=target_scaler)
+                                                             feature_scaler=feature_scaler,
+                                                             target_scaler=target_scaler)
 
     scaled_training_data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     scaled_training_data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
