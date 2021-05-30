@@ -190,6 +190,7 @@ def predict(data: list,
             print("Warning: The input 'target_scaler' is set to None according to model_type=classification'.")
         target_column_name = list(filter(lambda x: x.startswith('Target'), data[0].columns.values))[0]
         labels = data[0].loc[:, target_column_name].unique().tolist()
+        labels = [label for label in labels if not (label is None or str(label) == 'nan')]
         if len(labels) < 2:
             sys.exit("Error: The labels length must be at least two.")
         for d in data:
@@ -227,7 +228,6 @@ def predict(data: list,
 
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
-
     # ranking
     feature_selection_type = list(feature_sets.keys())[0]
     ranking_method = list(feature_sets.values())[0]
@@ -239,11 +239,13 @@ def predict(data: list,
         for d in data:
             ordered_covariates_or_features.append(rank_features(data=d.copy(),
                                                                 ranking_method=ranking_method))
-    # ordered_covariates_or_features = ordered_covariates_or_features[:7]
+    ordered_covariates_or_features = ordered_covariates_or_features[:7]
 
     # main process
     if test_type == 'whole-as-one':
         # train_validate
+        print(100 * '-')
+        print('Train Validate Process')
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
@@ -265,6 +267,8 @@ def predict(data: list,
                            verbose=verbose)
 
         # train_test
+        print(100 * '-')
+        print('Train Test Process')
         best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
                                                        forecast_horizon=forecast_horizon,
                                                        history_length=best_history_length,
@@ -281,7 +285,7 @@ def predict(data: list,
                                                        performance_report=testing_performance_report,
                                                        save_predictions=save_predictions,
                                                        verbose=verbose)
-
+        sys.exit('Finished')
         # predict_future
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
@@ -439,23 +443,24 @@ if __name__ == '__main__':
     # input_data = [f'usa_data/historical_data h={i}.csv' for i in range(1, 4)]
     # input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 11)]
     # input_data = [f'my_data/historical_data h={i}.csv' for i in range(1, 2)]
-    input_data = ['my_data/sample.csv']
+    # input_data = ['my_data/sample.csv']
+    input_data = [f'mbp_data/historical_data h={i}.csv' for i in range(1, 2)]
     predict(data=input_data,
-            forecast_horizon=14,
+            forecast_horizon=4,
             feature_scaler='logarithmic',
             target_scaler=None,
-            test_type='one-by-one',
+            test_type='whole-as-one',
             feature_sets={'covariate': 'mRMR'},
-            model_type='regression',
+            model_type='classification',
             models=['knn', 'gbm'],
             instance_testing_size=0.2,
             splitting_type='training-validation',
             instance_validation_size=0.3,
             instance_random_partitioning=False,
             fold_total_number=5,
-            performance_benchmark='MAE',
+            performance_benchmark='AUC',
             performance_mode='normal',
-            performance_measures=['MAPE', 'MAE'],
+            performance_measures=['AUC', 'likelihood'],
             scenario='current',
             validation_performance_report=True,
             testing_performance_report=True,
