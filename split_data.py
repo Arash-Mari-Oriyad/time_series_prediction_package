@@ -55,7 +55,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
                 raise ValueError("The float instance_validation_size will be interpreted to the proportion of data which is considered as validation set and must be less than 1.")
             
             if instance_testing_size is not None:
-                instance_validation_size = round(instance_validation_size * (number_of_temporal_units - instance_testing_size))
+                instance_validation_size = round(instance_validation_size * (number_of_temporal_units - (instance_testing_size + gap)))
             else:
                 instance_validation_size = round(instance_validation_size * (number_of_temporal_units))
                 
