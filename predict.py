@@ -6,6 +6,7 @@ import pandas as pd
 
 import configurations
 from get_future_data import get_future_data
+from get_target_quantities import get_target_quantities
 from rank_covariates import rank_covariates
 from rank_features import rank_features
 from train_validate import train_validate
@@ -189,6 +190,19 @@ def predict(data: list,
             print("Warning: The input 'target_scaler' is set to None according to model_type=classification'.")
         target_column_name = list(filter(lambda x: x.startswith('Target'), data[0].columns.values))[0]
         labels = data[0].loc[:, target_column_name].unique().tolist()
+        if len(labels) < 2:
+            sys.exit("Error: The labels length must be at least two.")
+        for d in data:
+            target_mode, target_granularity, granularity, _ = get_target_quantities(data=d.copy())
+            if not target_mode == 'normal':
+                sys.exit(
+                    "Error: The parameter 'target_mode' must be 'normal' according to 'model_type=classification'.")
+            if not target_granularity == 1:
+                sys.exit(
+                    "Error: The parameter 'target_granularity' must be 1 according to 'model_type=classification'.")
+            if not granularity == 1:
+                sys.exit(
+                    "Error: The parameter 'granularity' must be 1 according to 'model_type=classification'.")
 
     # one_by_one checking
     if test_type == 'one-by-one':
@@ -423,7 +437,9 @@ def predict(data: list,
 
 if __name__ == '__main__':
     # input_data = [f'usa_data/historical_data h={i}.csv' for i in range(1, 4)]
-    input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 11)]
+    # input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 11)]
+    # input_data = [f'my_data/historical_data h={i}.csv' for i in range(1, 2)]
+    input_data = ['my_data/sample.csv']
     predict(data=input_data,
             forecast_horizon=14,
             feature_scaler='logarithmic',
