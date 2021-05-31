@@ -1,9 +1,12 @@
 # performance function
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
 from sklearn import metrics
 from sklearn.preprocessing import label_binarize
 from math import log
+
+warnings.filterwarnings("once")
 
 # mean absolute scaled error
 def mase(true_values, predicted_values, trivial_values):

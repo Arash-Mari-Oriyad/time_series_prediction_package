@@ -1,5 +1,8 @@
 import pandas as pd
 import re
+import warnings
+
+warnings.filterwarnings("once")
 
 def select_features(data, ordered_covariates_or_features):
 	if isinstance(data, str):	# if the input named 'data' is a string (is a directory address)

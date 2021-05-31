@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import pathlib
 import re
+import warnings
 import configurations
 
 from performance import performance
@@ -88,6 +89,8 @@ def train_test(
 
 		model_parameters:	list<int>
 	"""
+
+	warnings.filterwarnings("once")
 
 	################################ checking for TypeError and other possible mistakes in the inputs
 	if not(isinstance(data, pd.DataFrame)):
@@ -275,25 +278,37 @@ def train_test(
 		performance_mode=performance_mode
 	)
 
-	# computing trivial values for the test set
-	_, _, _, testing_true_values, testing_predicted_values, testing_trivial_values = get_trivial_values(
-		train_true_values_df=training_target.copy(), 
-		validation_true_values_df=test_target.copy(), 
-		train_prediction=list(training_prediction), 
-		validation_prediction=test_prediction, 
-		forecast_horizon=forecast_horizon, 
-		granularity=granularity
-	)
+	# computing trivial values for the test set (just when want to calculate MASE)
+	if 'MASE' in performance_measures:
+		_, _, _, testing_true_values, testing_predicted_values, testing_trivial_values = get_trivial_values(
+			train_true_values_df=training_target.copy(), 
+			validation_true_values_df=test_target.copy(), 
+			train_prediction=list(training_prediction), 
+			validation_prediction=test_prediction, 
+			forecast_horizon=forecast_horizon, 
+			granularity=granularity
+		)
 
-	# computing performnace on test dataset
-	test_prediction_errors = performance(
-		true_values=testing_true_values, 
-		predicted_values=testing_predicted_values, 
-		performance_measures=performance_measures, 
-		trivial_values=testing_trivial_values, 
-		model_type=model_type, 
-		num_params=number_of_parameters, 
-		labels=labels)
+		# computing performnace on test dataset
+		test_prediction_errors = performance(
+			true_values=testing_true_values, 
+			predicted_values=testing_predicted_values, 
+			performance_measures=performance_measures, 
+			trivial_values=testing_trivial_values, 
+			model_type=model_type, 
+			num_params=number_of_parameters, 
+			labels=labels)
+
+	else:
+		# computing performnace on test dataset
+		test_prediction_errors = performance(
+			true_values=test_target['Normal target'], 
+			predicted_values=test_prediction, 
+			performance_measures=performance_measures, 
+			trivial_values=[], 
+			model_type=model_type, 
+			num_params=number_of_parameters, 
+			labels=labels)
 	
 	# checking for existance of some directories for logging purpose
 	if pathlib.Path('prediction/test process').is_dir() == False:
