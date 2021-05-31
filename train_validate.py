@@ -22,6 +22,8 @@ from get_normal_target import get_normal_target
 from get_trivial_values import get_trivial_values
 from apply_performance_mode import apply_performance_mode
 from get_target_quantities import get_target_quantities
+import warnings
+warnings.filterwarnings("once")
 
 
 #####################################################################################################
