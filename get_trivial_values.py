@@ -26,23 +26,23 @@ def get_trivial_values(train_true_values_df, validation_true_values_df, train_pr
     
     '''
     train_true_values_df.loc[:,('prediction')] = train_prediction
+    train_true_values_df.loc[:,('type')] = 1
     validation_true_values_df.loc[:,('prediction')] = validation_prediction
-    number_of_spatial_units = len(train_true_values_df['spatial id'].unique())
-    train_true_values_df = train_true_values_df.sort_values(by = ['temporal id', 'spatial id'])
-    validation_true_values_df = validation_true_values_df.sort_values(by = ['temporal id', 'spatial id'])
-    accessible_train_df = train_true_values_df.copy().iloc[(forecast_horizon * granularity * number_of_spatial_units):,:]
-    train_true_values = list(np.array(accessible_train_df['Normal target']).reshape(-1))
-    train_predicted_values = list(np.array(accessible_train_df['prediction']).reshape(-1))
-    validation_true_values = list(np.array(validation_true_values_df['Normal target']).reshape(-1))
-    validation_predicted_values = list(np.array(validation_true_values_df['prediction']).reshape(-1))
-    val_size = len(validation_true_values)
-    train_size = len(train_true_values)
+    validation_true_values_df.loc[:,('type')] = 2
+    whole_data = train_true_values_df.append(validation_true_values_df)
     
-    base_df = train_true_values_df.append(validation_true_values_df)
-    base_df = base_df.sort_values(by = ['temporal id', 'spatial id'])
-    base_df = base_df.iloc[:-(forecast_horizon * granularity * number_of_spatial_units),:]
-    validation_trivial_values = list(np.array(base_df.tail(val_size)['Normal target']).reshape(-1))
-    base_df = base_df.iloc[:-(val_size),:]
-    train_trivial_values = list(np.array(base_df.tail(train_size)['Normal target']).reshape(-1))
+    number_of_spatial_units = len(whole_data['spatial id'].unique())
+    whole_data = whole_data.sort_values(by = ['temporal id', 'spatial id'])
+    
+    accessible_data = whole_data.copy().iloc[(forecast_horizon * granularity * number_of_spatial_units):,:]
+    accessible_data['trivial values'] = whole_data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units),:]['Normal target']
+    
+    train_true_values = list(np.array(accessible_data.loc[accessible_data['type'] == 1,'Normal target']).reshape(-1))
+    train_predicted_values = list(np.array(accessible_data.loc[accessible_data['type'] == 1,'prediction']).reshape(-1))
+    train_trivial_values = list(np.array(accessible_data.loc[accessible_data['type'] == 1,'trivial values']).reshape(-1))
+    
+    validation_true_values = list(np.array(accessible_data.loc[accessible_data['type'] == 2,'Normal target']).reshape(-1))
+    validation_predicted_values = list(np.array(accessible_data.loc[accessible_data['type'] == 2,'prediction']).reshape(-1))
+    validation_trivial_values = list(np.array(accessible_data.loc[accessible_data['type'] == 2,'trivial values']).reshape(-1))
     
     return train_true_values, train_predicted_values, train_trivial_values, validation_true_values, validation_predicted_values, validation_trivial_values
