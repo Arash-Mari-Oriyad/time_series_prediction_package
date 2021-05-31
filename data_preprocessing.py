@@ -28,7 +28,7 @@ def rename_columns(data,column_identifier, mode = 'formalize'):
                         data.rename(columns = {key:value}, inplace = True)
             
     elif column_identifier is not None:
-        sys.exit("The column_identifier must be of type dict")
+        raise TypeError("The column_identifier must be of type dict")
 
     return data
 
@@ -41,9 +41,9 @@ def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'):
 
     if 'spatial id level 1' not in data.columns:
         if data_type != 'spatial_scales':
-            sys.exit("The input {0} has no spatial id column, and the name of this column is not specified in the column_identifier.\nmissing column: 'spatial id level 1'".format(input_name))
+            raise Exception("The input {0} has no spatial id column, and the name of this column is not specified in the column_identifier.\nmissing column: 'spatial id level 1'".format(input_name))
         else:
-            sys.exit("The input {0} has no spatial id column.\nmissing column: 'spatial id level 1'".format(input_name))
+            raise Exception("The input {0} has no spatial id column.\nmissing column: 'spatial id level 1'".format(input_name))
     
     else:
         # check for null values
@@ -51,7 +51,7 @@ def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'):
             column_name = 'spatial id level ' + str(i)
             if column_name in data.columns:
                 if data[column_name].isnull().values.any():
-                    sys.exit('spatial id must have value for all instances but spatial id level '+str(i)+' in {0} includes NULL values'.format(input_name))
+                    raise ValueError('spatial id must have value for all instances but spatial id level '+str(i)+' in {0} includes NULL values'.format(input_name))
             else: break
 
     if data_type in ['temporal','full']:
@@ -59,18 +59,18 @@ def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'):
         if 'temporal id' in data.columns: # integrated temporal id format
             temporal_identifier_column_name = 'temporal id'
             if data[temporal_identifier_column_name].isnull().values.any():
-                    sys.exit('temporal id must have value for all instances but temporal id column in {0} includes NULL values'.format(input_name))
+                    raise ValueError('temporal id must have value for all instances but temporal id column in {0} includes NULL values'.format(input_name))
 
         elif 'temporal id level 1' in data.columns: # non-integrated temporal id format
             data = add_dummy_integrated_temporal_id(data.copy())
             temporal_identifier_column_name = 'dummy temporal id'
         else:
-            sys.exit("The input {0} has no temporal id column, and the name of this column is not specified in the column_identifier.\nmissing column: 'temporal id' or 'temporal id level 1'".format(input_name))
+            raise Exception("The input {0} has no temporal id column, and the name of this column is not specified in the column_identifier.\nmissing column: 'temporal id' or 'temporal id level 1'".format(input_name))
             
         data = data.drop_duplicates(subset = ['spatial id level 1',temporal_identifier_column_name]).copy()
 
         if len(data) != len(data['spatial id level 1'].unique())* len(data[temporal_identifier_column_name].unique()):
-            sys.exit("The input {0} has different number of temporal units recorded for each spatial unit".format(input_name))
+            raise ValueError("The input {0} has different number of temporal units recorded for each spatial unit".format(input_name))
         if 'dummy temporal id' in data.columns:
             data.drop(['dummy temporal id'], axis = 1, inplace = True)
             
@@ -79,7 +79,7 @@ def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'):
         try:
             data[covar].astype(float)
         except (ValueError, TypeError):
-            sys.exit("The covariates and target variable must include only numerical values. But non-numerical values are recorded for the {0}".format(covar))
+            raise ValueError("The covariates and target variable must include only numerical values. But non-numerical values are recorded for the {0}".format(covar))
     return
             
 ############################ rename the columns of final historical data
@@ -148,12 +148,12 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         
         for col in id_columns:
             if col not in future_data_table.columns :
-                sys.exit("The temporal and spatial id columns must be identical in the future_data_table and the input data.")
+                raise ValueError("The temporal and spatial id columns must be identical in the future_data_table and the input data.")
         
         extra_columns = (set(future_data_table.columns)-set(id_columns)-set(futuristic_covariate_list))
         if len(extra_columns) > 0: print("\nWarning: some of the columns in the future_data_table are not in the futuristic_covariates and will be ignored.")
         unspecified_columns = (set(futuristic_covariate_list)-(set(future_data_table.columns)-set(id_columns)))
-        if len(unspecified_columns) > 0:sys.exit("Some of the futuristic covariates in the futuristic_covariates dict are not included in the future_data_table.")
+        if len(unspecified_columns) > 0:raise Exception("Some of the futuristic covariates in the futuristic_covariates dict are not included in the future_data_table.")
         
     if 'temporal id' in temporal_data.columns:
         temporal_identifier_column_name = 'temporal id'
@@ -266,7 +266,7 @@ def add_dummy_integrated_temporal_id(temporal_data, start_level = 1):
             
             # check for null values
             if temporal_data['temporal id level '+str(i)].isnull().values.any():
-                sys.exit('temporal id must have value for all instances but temporal id level '+str(i)+' includes NULL values')
+                raise ValueError('temporal id must have value for all instances but temporal id level '+str(i)+' includes NULL values')
         else:
             break
             
@@ -305,7 +305,7 @@ def add_spatial_ids(data,spatial_scale_table):
     # check spatial_scale_table to have information of all the units in the spatial scale level 1
     intersection = list(set(data['spatial id level 1'].unique()) & set(spatial_scale_table['spatial id level 1'].unique()))
     if len(intersection) < len(data['spatial id level 1'].unique()):
-        sys.exit('The ids of some units in the spatial scale level 1 are missed in the spatial_scales_table.')
+        raise ValueError('The ids of some units in the spatial scale level 1 are missed in the spatial_scales_table.')
 
     spatial_scale_levels = ['spatial id level 1']
     for i in range(2,200):
@@ -326,7 +326,7 @@ def create_time_stamp(data, time_format, required_suffix):
         data.loc[:,('temporal id')] = data['temporal id'].astype(str) + required_suffix
         data.loc[:,('temporal id')] = data['temporal id'].apply(lambda x:datetime.datetime.strptime(x,time_format))
     except ValueError:
-        sys.exit("temporal id values doesn't match any supported integrated format for temporal id.\n")
+        raise ValueError("temporal id values doesn't match any supported integrated format for temporal id.\n")
     return data
 
 ############################ find the scale of temporal ids and transform to the time stamp format
@@ -338,7 +338,7 @@ def check_integrated_temporal_id(temporal_data):
     temporal_id_instance = str(temporal_data['temporal id'].iloc[0])
     
     if len(temporal_id_instance) not in list_of_supported_formats_string_length:
-        sys.exit("temporal id values doesn't match any supported integrated format for temporal id.\n")
+        raise ValueError("temporal id values doesn't match any supported integrated format for temporal id.\n")
     
     # find the scale
     if len(temporal_id_instance) == 4:
@@ -362,7 +362,7 @@ def check_integrated_temporal_id(temporal_data):
         elif delta.days == 7:
             scale = 'week'
         else:
-            sys.exit("temporal ids with format YYYY/MM/DD must be daily or weekly, but two consecutive id's of input data have a difference of {0} days.\n".format(delta.days))
+            raise ValueError("temporal ids with format YYYY/MM/DD must be daily or weekly, but two consecutive id's of input data have a difference of {0} days.\n".format(delta.days))
     
     elif len(temporal_id_instance) == 13:
         scale = 'hour'
@@ -383,7 +383,7 @@ def check_integrated_temporal_id(temporal_data):
 def find_granularity(data, temporal_scale_level):
     
     if (type(temporal_scale_level) != int) and (temporal_scale_level is not None):
-        sys.exit("The temporal_scale_level must be of type int.\n")
+        raise TypeError("The temporal_scale_level must be of type int.\n")
     
     
     ###################################### integrated temporal id format ################################
@@ -405,14 +405,14 @@ def find_granularity(data, temporal_scale_level):
             temporal_scale_level = 2
             desired_temporal_scale_level = scale_level_dict[scale] + temporal_scale_level - 1
             if desired_temporal_scale_level > 7:
-                sys.exit("The temporal scale level of the data is {0}. Thus the 'moving average' target_mode couldn't be applied cause the temporal scale bigger than {0} is ambiguous.\n".format(scale))
+                raise exception("The temporal scale level of the data is {0}. Thus the 'moving average' target_mode couldn't be applied cause the temporal scale bigger than {0} is ambiguous.\n".format(scale))
 
 
         # determine the numerical desired temporal scale level based on the input data
         # temporal scale and user specified temporal_scale_level
         desired_temporal_scale_level = scale_level_dict[scale] + temporal_scale_level - 1
         if desired_temporal_scale_level > 7:
-            sys.exit('The first temporal scale level recorded in the data is {0}. So the temporal scale level {1} is out of the supported range of temporal scale levels: second, minute, hour, day, week, month, year'.format(scale,temporal_scale_level))
+            raise Exception('The first temporal scale level recorded in the data is {0}. So the temporal scale level {1} is out of the supported range of temporal scale levels: second, minute, hour, day, week, month, year'.format(scale,temporal_scale_level))
 
         # get the nominal form of desired temporal scale level
         desired_temporal_scale = list(scale_level_dict.keys())[list(scale_level_dict.values()).index(desired_temporal_scale_level)]
@@ -434,13 +434,13 @@ def find_granularity(data, temporal_scale_level):
             temporal_scale_level = smallest_temporal_level + 1
             desired_scale_column_name = 'temporal id level ' + str(temporal_scale_level)
             if desired_scale_column_name not in data.columns:
-                sys.exit("The next bigger temporal scale after data current temporal scale (temporal scale level {0}) isn't included in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored.\n".format(smallest_temporal_level))
+                raise ValueError("The next bigger temporal scale after data current temporal scale (temporal scale level {0}) isn't included in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored.\n".format(smallest_temporal_level))
             
         else:
             smallest_temporal_level = 1
             desired_scale_column_name = 'temporal id level ' + str(temporal_scale_level)
             if desired_scale_column_name not in data.columns:
-                sys.exit("temporal_scale_level {0} is not in the time scale levels recorded in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored. ".format(temporal_scale_level))
+                raise ValueError("temporal_scale_level {0} is not in the time scale levels recorded in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored. ".format(temporal_scale_level))
 
             
         # next 2 line removes the duplicate data samples having same spatial and temporal id's.
@@ -468,9 +468,9 @@ def prepare_data(data, column_identifier):
             try:
                 data = pd.read_csv(data)
             except FileNotFoundError:
-                sys.exit("File '{0}' does not exist.\n".format(data))
+                raise FileNotFoundError("File '{0}' does not exist.\n".format(data))
         elif type(data) != pd.DataFrame :
-            sys.exit("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
+            raise TypeError("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
         data = rename_columns(data.copy(), column_identifier)
 
         check_validity(data.copy(), input_name = 'data', data_type = 'full')
@@ -513,12 +513,12 @@ def prepare_data(data, column_identifier):
                 try:
                     temporal_data = pd.read_csv(data['temporal_data'])
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.\n".format(data['temporal_data']))
+                    raise FileNotFoundError("File '{0}' does not exist.\n".format(data['temporal_data']))
 
             elif type(data['temporal_data']) == pd.DataFrame:
                 temporal_data = data['temporal_data']
             else:
-                sys.exit("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
+                raise valueError("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
             temporal_data = rename_columns(temporal_data.copy(), column_identifier)
             check_validity(temporal_data.copy(), input_name = 'temporal_data', data_type = 'temporal')
 
@@ -534,7 +534,7 @@ def prepare_data(data, column_identifier):
             temporal_data.drop(temporal_data_extra_columns, axis = 1, inplace = True)
 
         else:
-            sys.exit("The data on temporal covariates and target variable must be passed to the function using data argument and as a DataFrame, Data address or value of 'temporal_data' key in the dictionary of data. But none is passed.\n")
+            raise Exception("The data on temporal covariates and target variable must be passed to the function using data argument and as a DataFrame, Data address or value of 'temporal_data' key in the dictionary of data. But none is passed.\n")
 
 
         if ('spatial_data' in data.keys()) and (data['spatial_data'] is not None):
@@ -543,12 +543,12 @@ def prepare_data(data, column_identifier):
                 try:
                     spatial_data = pd.read_csv(data['spatial_data'])
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.\n".format(data['spatial_data']))
+                    raise FileNotFoundError("File '{0}' does not exist.\n".format(data['spatial_data']))
 
             elif type(data['spatial_data']) == pd.DataFrame:
                 spatial_data = data['spatial_data']
             else:
-                sys.exit("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
+                raise ValueError("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
 
             spatial_data = rename_columns(spatial_data.copy(), column_identifier)
             check_validity(spatial_data.copy(), input_name = 'spatial_data', data_type = 'spatial')
@@ -608,7 +608,7 @@ def impute(data, column_identifier = None, verbose = 0):
         
         # check if covariate has no value for an temporal unit
         if len(temporal_units_with_all_nulls) > 0:
-            sys.exit("The input data has no value for {0}, in some temporal units.\nThe covariates must have value for at least one spatial unit in each temporal units recorded in the data".format(covar))
+            raise ValueError("The input data has no value for {0}, in some temporal units.\nThe covariates must have value for at least one spatial unit in each temporal units recorded in the data".format(covar))
         
         data = data.drop_duplicates(subset = ['spatial id level 1',temporal_identifier_column_name]).copy()
         
@@ -646,7 +646,7 @@ def impute(data, column_identifier = None, verbose = 0):
     number_of_removed_spatial_units = number_of_spatial_units - len(imputed_data['spatial id level 1'].unique())
     
     if number_of_removed_spatial_units == number_of_spatial_units:
-        sys.exit("All the spatial units have no value for at least one temporal covariate and are removed from the data. Therefore, no spatial unit remains to make a prediction.\n")
+        raise Exception("All the spatial units have no value for at least one temporal covariate and are removed from the data. Therefore, no spatial unit remains to make a prediction.\n")
     elif number_of_removed_spatial_units > 0:
         if verbose == 0:
             print('\nWarning: The number of {0} spatial units has no value for at least one temporal covariate and are removed from the data.\n'.format(number_of_removed_spatial_units))
@@ -682,7 +682,7 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
         data = add_spatial_ids(data.copy(),spatial_scale_table)
 
     if desired_scale_column_name not in data.columns:
-        sys.exit("spatial_scale_level {0} isn't in the spatial scale levels included in the data.\n".format(spatial_scale_level))
+        raise ValueError("spatial_scale_level {0} isn't in the spatial scale levels included in the data.\n".format(spatial_scale_level))
 
 
     if data_type == 'temporal':
@@ -729,7 +729,7 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
         mean_covariates = [covar for covar,operator in aggregation_mode.items() if operator == 'mean']
         sum_covariates = [covar for covar,operator in aggregation_mode.items() if operator == 'sum']
     else:
-        sys.exit("aggregation_mode must be 'sum' or 'mean' or a dictionary with covariates name as the keys and 'sum' or 'mean' as the values")
+        raise ValueError("aggregation_mode must be 'sum' or 'mean' or a dictionary with covariates name as the keys and 'sum' or 'mean' as the values")
 
     unspecified_covariates = list(set(covariate_names)-set(mean_covariates + sum_covariates))
     if len(unspecified_covariates)>0:
@@ -785,7 +785,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
     check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
     
     if type(temporal_scale_level) != int:
-        sys.exit("The temporal_scale_level must be of type int.\n")
+        raise TypeError("The temporal_scale_level must be of type int.\n")
         
     if temporal_scale_level == 1:
         if verbose > 0: print ('The temporal_scale_level = 1 is interpreted to no temporal transformation')
@@ -814,7 +814,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
         # temporal scale and user specified temporal_scale_level
         desired_temporal_scale_level = scale_level_dict[scale] + temporal_scale_level - 1
         if desired_temporal_scale_level > 7:
-            sys.exit('The first temporal scale level recorded in the data is {0}. So the temporal scale level {1} is out of the supported range of temporal scale levels: second, minute, hour, day, week, month, year'.format(scale,temporal_scale_level))
+            raise Exception('The first temporal scale level recorded in the data is {0}. So the temporal scale level {1} is out of the supported range of temporal scale levels: second, minute, hour, day, week, month, year'.format(scale,temporal_scale_level))
 
         # get the nominal form of desired temporal scale level
         desired_temporal_scale = list(scale_level_dict.keys())[list(scale_level_dict.values()).index(desired_temporal_scale_level)]
@@ -883,7 +883,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
 
         desired_scale_column_name = 'temporal id level ' + str(temporal_scale_level)
         if desired_scale_column_name not in data.columns:
-            sys.exit("temporal_scale_level {0} is not in the temporal scale levels recorded in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored. ".format(temporal_scale_level))
+            raise ValueError("temporal_scale_level {0} is not in the temporal scale levels recorded in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored. ".format(temporal_scale_level))
         elif verbose > 0 :
             if column_identifier is not None:
                 print("\nTransformation of data to the temporal scale of the {0} is running.\n".format(column_identifier[desired_scale_column_name]))
@@ -963,7 +963,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
             data = rename_columns(data, column_identifier, 'deformalize')
             
     if len(data)<1:
-        sys.exit("The number of recorded units in the data with the specified temporal scale level is less than one.")
+        raise Exception("The number of recorded units in the data with the specified temporal scale level is less than one.")
     
     return data
 
@@ -982,11 +982,11 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
     check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
     
     if 'target' not in data.columns:
-        sys.exit("There is no column named 'target' in the input data, and the corresponding column is not specified in the column_identifier.\n")
+        raise ValueError("There is no column named 'target' in the input data, and the corresponding column is not specified in the column_identifier.\n")
     try:
         data.loc[:,('target')] = data['target'].astype(float)
     except ValueError:
-        sys.exit("The target column includes non-numerical values.\n")
+        raise ValueError("The target column includes non-numerical values.\n")
         
     if (data['target'].isnull().values.any()) and (target_mode in ['cumulative', 'differential', 'moving average']):
         print("\nWarning: The target variable column includes Null values and therefore the resulting values of applying {0} target_mode is not valid.\n".format(target_mode))
@@ -1049,7 +1049,7 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
 
             desired_temporal_scale_level = scale_level_dict[scale] + 1
             if desired_temporal_scale_level > 7:
-                sys.exit("The temporal scale level of the data is {0}. Thus the 'moving average' target_mode couldn't be applied cause the temporal scale bigger than {0} is ambiguous.\n".format(scale))
+                raise Exception("The temporal scale level of the data is {0}. Thus the 'moving average' target_mode couldn't be applied cause the temporal scale bigger than {0} is ambiguous.\n".format(scale))
 
              # get the nominal form of desired temporal scale level
             desired_temporal_scale = list(scale_level_dict.keys())[list(scale_level_dict.values()).index(desired_temporal_scale_level)]
@@ -1093,7 +1093,7 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
             
             desired_scale_column_name = 'temporal id level ' + str(smallest_temporal_level+1)
             if desired_scale_column_name not in data.columns:
-                sys.exit("The next bigger temporal scale after data current temporal scale (temporal scale level {0}) isn't included in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored.\n".format(smallest_temporal_level))
+                raise Exception("The next bigger temporal scale after data current temporal scale (temporal scale level {0}) isn't included in the data or is located after a gap in the temporal scale levels sequence and is therefore ignored.\n".format(smallest_temporal_level))
                 
             # get number of smaller temporal units in each bigger temporal unit
             granularity = data.groupby(['spatial id level 1',desired_scale_column_name]).count()['dummy temporal id'].max()
@@ -1125,7 +1125,7 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
     elif target_mode == 'normal':
         data = data
     else:
-        sys.exit("The specified target_mode is not recognized. The supported target_modes are:\n{'normal', 'cumulative', 'differential', 'moving average'}")
+        raise ValueError("The specified target_mode is not recognized. The supported target_modes are:\n{'normal', 'cumulative', 'differential', 'moving average'}")
     
     data = pd.merge(data,
             normal_target_df[normal_target_df[temporal_identifier_column_name].isin(data[temporal_identifier_column_name].unique())],
@@ -1153,9 +1153,9 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             try:
                 data = pd.read_csv(data)
             except FileNotFoundError:
-                sys.exit("File '{0}' does not exist.\n".format(data))
+                raise FileNotFoundError("File '{0}' does not exist.\n".format(data))
         elif type(data) != pd.DataFrame :
-            sys.exit("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
+            raise TypeError("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
         data = rename_columns(data.copy(), column_identifier)
         
         check_validity(data.copy(), input_name = 'data', data_type = 'full')
@@ -1167,17 +1167,17 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
                 try:
                     temporal_data = pd.read_csv(data['temporal_data'])
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.\n".format(data['temporal_data']))
+                    raise FileNotFoundError("File '{0}' does not exist.\n".format(data['temporal_data']))
                     
             elif type(data['temporal_data']) == pd.DataFrame:
                 temporal_data = data['temporal_data']
             else:
-                sys.exit("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
+                raise ValueError("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
             temporal_data = rename_columns(temporal_data.copy(), column_identifier)
             check_validity(temporal_data.copy(), input_name = 'temporal_data', data_type = 'temporal')
             
         else:
-            sys.exit("The data on temporal covariates and target variable must be passed to the function using data argument and as a DataFrame, Data address or value of 'temporal_data' key in the dictionary of data. But none is passed.\n")
+            raise Exception("The data on temporal covariates and target variable must be passed to the function using data argument and as a DataFrame, Data address or value of 'temporal_data' key in the dictionary of data. But none is passed.\n")
         
 
         if ('spatial_data' in data.keys()) and (data['spatial_data'] is not None):
@@ -1186,12 +1186,12 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
                 try:
                     spatial_data = pd.read_csv(data['spatial_data'])
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.\n".format(data['spatial_data']))
+                    raise ("File '{0}' does not exist.\n".format(data['spatial_data']))
                     
             elif type(data['spatial_data']) == pd.DataFrame:
                 spatial_data = data['spatial_data']
             else:
-                sys.exit("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
+                raise ValueError("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
             
             spatial_data = rename_columns(spatial_data.copy(), column_identifier)
             check_validity(spatial_data.copy(), input_name = 'spatial_data', data_type = 'spatial')
@@ -1221,7 +1221,7 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             
             
     if 'target' not in data.columns:
-        sys.exit("There is no column named 'target' in input data")
+        raise ValueError("There is no column named 'target' in input data")
     
     if column_identifier is None:
         spatial_covariates = list(filter(lambda x:x.startswith('spatial covariate'), data.columns))
@@ -1245,10 +1245,10 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
         try:
             future_data_table = pd.read_csv(future_data_table)
         except FileNotFoundError:
-            sys.exit("File '{0}' does not exist.\n".format(future_data_table))
+            raise ("File '{0}' does not exist.\n".format(future_data_table))
             
     elif (type(future_data_table) != pd.DataFrame) and (future_data_table is not None):
-        sys.exit("The future_data_table must be a data frame or address of the data frame containing the values of futuristic covariates in the future.")
+        raise TypeError("The future_data_table must be a data frame or address of the data frame containing the values of futuristic covariates in the future.")
     
             
     ######################## check type and validity of input history_length and futuristic_covariates #####################
@@ -1289,26 +1289,26 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             history_length_dict[covar] = 1
         for covar in history_length_dict.keys():
             if type(history_length_dict[covar]) != int:
-                sys.exit("The specified history length for each covariate in the history_length dict must be of type int.\n")
+                raise ValueError("The specified history length for each covariate in the history_length dict must be of type int.\n")
         max_history_length = max(history_length_dict.values())
         
     else:
-        sys.exit("The history_length must be of type int or dict.\n")
+        raise TypeError("The history_length must be of type int or dict.\n")
         
     if futuristic_covariates is not None:
         if type(futuristic_covariates) == dict:
             for covar in futuristic_covariates.keys():
                 if (len(futuristic_covariates[covar])!=2) or (futuristic_covariates[covar][1]-futuristic_covariates[covar][0]<0):
-                    sys.exit("The temporal interval of each futuristic covariate must be specified in futuristic_covariates dict using a list including start and end of the interval as first and second item.\n")
+                    raise ValueError("The temporal interval of each futuristic covariate must be specified in futuristic_covariates dict using a list including start and end of the interval as first and second item.\n")
                 elif (type(futuristic_covariates[covar][0])!=int)or(type(futuristic_covariates[covar][1])!=int):
-                    sys.exit("The start and end point of futuristic covariates temporal interval must be of type int.\n")
+                    raise ValueError("The start and end point of futuristic covariates temporal interval must be of type int.\n")
                 elif futuristic_covariates[covar][1] > forecast_horizon:
-                    sys.exit("The end point of futuristic covariates temporal interval must be smaller than forecast_horizon.\n")
+                    raise ValueError("The end point of futuristic covariates temporal interval must be smaller than forecast_horizon.\n")
                 else:
                     history_length_dict[covar] = futuristic_covariates[covar][1] - futuristic_covariates[covar][0] + 1
 
         else:
-            sys.exit("The futuristic_covariates must be of type dict.\n")
+            raise TypeError("The futuristic_covariates must be of type dict.\n")
         
         key_list = list(futuristic_covariates.keys())
         for item in key_list:
@@ -1327,7 +1327,7 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
     ######################## check type and validity of forecast horizon
     
     if type(forecast_horizon) != int:
-        sys.exit("The forecast_horizon must be of type int.")
+        raise TypeError("The forecast_horizon must be of type int.")
     elif forecast_horizon == 0:
         forecast_horizon = 1
     
@@ -1473,6 +1473,10 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
                     target_mode = 'normal', imputation = True, aggregation_mode = 'mean', augmentation = False,
                     futuristic_covariates = None, future_data_table = None, save_address = None, verbose = 0):
     
+    
+    
+    ####################
+    
     spatial_covariates = []
     temporal_covariates = []
     granularity = None
@@ -1500,11 +1504,11 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
     # if input data has no covariate (spatial or temporal)
     if len(temporal_covariates) == 0:
         if (spatial_data is None) or (len(spatial_covariates) == 0):
-            sys.exit("There is no spatial or temporal covariate included in input data")
+            raise ValueError("There is no spatial or temporal covariate included in input data")
             
     # if input data has no target
     if 'target' not in temporal_data.columns:
-        sys.exit("The target variable is not recorded in input data and doesn't specified in column_identifier.\nmissing column: 'target'")
+        raise ValueError("The target variable is not recorded in input data and doesn't specified in column_identifier.\nmissing column: 'target'")
 
     ############## check the futuristic_covariate input validity
     
@@ -1512,13 +1516,13 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         if type(futuristic_covariates) == dict:
             for item in futuristic_covariates.keys():
                 if (len(futuristic_covariates[item])!=2) or (futuristic_covariates[item][1]-futuristic_covariates[item][0]<0):
-                    sys.exit("The temporal interval of each futuristic covariate must be specified in futuristic_covariates dict using a list including start and end of the interval as first and second item.\n")
+                    raise ValueError("The temporal interval of each futuristic covariate must be specified in futuristic_covariates dict using a list including start and end of the interval as first and second item.\n")
                 elif (type(futuristic_covariates[item][0])!=int)or(type(futuristic_covariates[item][1])!=int):
-                    sys.exit("The start and end point of futuristic covariates temporal interval must be of type int.\n")
+                    raise ValueError("The start and end point of futuristic covariates temporal interval must be of type int.\n")
                 elif futuristic_covariates[item][1] > forecast_horizon:
-                    sys.exit("The end point of futuristic covariates temporal interval must be smaller than forecast_horizon.\n")
+                    raise ValueError("The end point of futuristic covariates temporal interval must be smaller than forecast_horizon.\n")
         else:
-            sys.exit("The futuristic_covariates must be of type dict.\n")
+            raise TypeError("The futuristic_covariates must be of type dict.\n")
             
         key_list = list(futuristic_covariates.keys())    
         for item in futuristic_covariates.keys():
@@ -1541,7 +1545,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
     if type(history_length) == dict :
         for covar in history_length.keys():
             if (type(history_length[covar]) != int) and (covar in temporal_covariates) :
-                  sys.exit("\nThe maximum history length of covariates specified in history_length must be of type int.")
+                  raise TypeError("\nThe maximum history length of covariates specified in history_length must be of type int.")
                     
         key_list = list(history_length.keys())
         for item in key_list:
@@ -1560,7 +1564,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
     ######################## check type and validity of forecast horizon
     
     if type(forecast_horizon) != int:
-        sys.exit("The forecast_horizon must be of type int.")
+        raise TypeError("The forecast_horizon must be of type int.")
     elif forecast_horizon == 0:
         forecast_horizon = 1
         
@@ -1570,10 +1574,10 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         try:
             future_data_table = pd.read_csv(future_data_table)
         except FileNotFoundError:
-            sys.exit("File '{0}' does not exist.\n".format(future_data_table))
+            raise FileNotFoundError("File '{0}' does not exist.\n".format(future_data_table))
             
     elif (type(future_data_table) != pd.DataFrame) and (future_data_table is not None):
-        sys.exit("The future_data_table must be a data frame or address of the data frame containing the values of futuristic covariates in the future.")
+        raise TypeError("The future_data_table must be a data frame or address of the data frame containing the values of futuristic covariates in the future.")
     
     ############################## Imputation ##############################
     
@@ -1594,7 +1598,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         number_of_removed_spatial_units = number_of_raw_spatial_units - spatial_data.shape[0]
 
         if number_of_removed_spatial_units == number_of_raw_spatial_units:
-            sys.exit("All the spatial units include missing values for spatial covariates. Therefore, no spatial unit remains to make a prediction.\n")
+            raise ValueError("All the spatial units include missing values for spatial covariates. Therefore, no spatial unit remains to make a prediction.\n")
         elif number_of_removed_spatial_units > 0:
             print('\nWarning: The number of {0} spatial units has missing values for spatial covariates and will be removed from the data.\n'.format(number_of_removed_spatial_units))
 
@@ -1848,10 +1852,10 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
         try:
             data = pd.read_csv(data)
         except FileNotFoundError:
-            sys.exit("File '{0}' does not exist.\n".format(data))
+            raise FileNotFoundError("File '{0}' does not exist.\n".format(data))
             
     elif type(data) != pd.DataFrame:
-        sys.exit("The input data must be of type DataFrame or string.")
+        raise TypeError("The input data must be of type DataFrame or string.")
     
     df = rename_columns(data, column_identifier)
     
@@ -1860,7 +1864,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
             print("The number of spatial_ids must be a maximum of 3.")
         spatial_id = spatial_id[:3]
     elif spatial_id is not None:
-        sys.exit("The spatial_id must be of type list.")
+        raise TypeError("The spatial_id must be of type list.")
     
     ################## spatial scale transform #################
     
@@ -1871,7 +1875,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
                 try:
                     spatial_scale_table = pd.read_csv(spatial_scale_table)
                 except FileNotFoundError:
-                    sys.exit("File '{0}' does not exist.\n".format(spatial_scale_table))
+                    raise FileNotFoundError("File '{0}' does not exist.\n".format(spatial_scale_table))
             spatial_scale_table = rename_columns(spatial_scale_table.copy(), column_identifier)
 
         df = spatial_scale_transform(df, 'temporal', spatial_scale_table = spatial_scale_table, spatial_scale_level = spatial_scale, aggregation_mode = 'mean')
@@ -1888,7 +1892,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
     ################## select desired temporal interval for plot from data ###############
     
     if (type(temporal_range) != dict) and (temporal_range is not None):
-        sys.exit("The temporal_range most be of type dict.")
+        raise TypeError("The temporal_range most be of type dict.")
     
     # if temporal id format is integrated
     if 'temporal id' in df.columns:
