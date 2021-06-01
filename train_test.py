@@ -333,7 +333,7 @@ def train_test(
 			df = pd.DataFrame()
 			df['real'] = test_target_normal['Normal target'].values.tolist()
 			for i in range(len(labels)):
-				col_name = str(labels[i])
+				col_name = 'class ' + str(labels[i])
 				df[col_name] = testing_predictions[:, i]
 			df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
 			df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
