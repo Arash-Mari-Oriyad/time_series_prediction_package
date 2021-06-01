@@ -111,7 +111,8 @@ def predict_future(data: pd.DataFrame or str,
                     value = training_data.loc[training_data['spatial id'] == spatial_id, futuristic_feature].values[-1]
                 testing_data.loc[testing_data['spatial id'] == spatial_id, futuristic_feature] = value
     else:
-        if not all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
+        if len(futuristic_features) > 0 and not \
+                all([testing_data.isna().sum()[futuristic_feature] == 0 for futuristic_feature in futuristic_features]):
             sys.exit("Error: The input 'scenario' is not provided and "
                      "some futuristic features have null values in the input 'future_data'.")
 
@@ -158,9 +159,12 @@ def predict_future(data: pd.DataFrame or str,
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
     data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else model.__name__
     data_to_save.loc[:, 'real'] = None
-    converted_normal_testing_predictions = list(zip(*normal_testing_predictions))
-    for index, label in enumerate(labels):
-        data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
+    if model_type == 'regression':
+        data_to_save.loc[:, 'prediction'] = normal_testing_predictions
+    else:
+        converted_normal_testing_predictions = list(zip(*normal_testing_predictions))
+        for index, label in enumerate(labels):
+            data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
 
     save_predictions_address = \
         f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
