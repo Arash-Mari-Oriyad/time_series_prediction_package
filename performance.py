@@ -29,21 +29,21 @@ def auc(true_values, y_score, labels=None):
 			labels=labels
 		)
 
-		# Data to plot roc curve
-		false_positive_rate, true_positive_rate, _ = metrics.roc_curve(true_values, y_score[:, 1])
+		# # Data to plot roc curve
+		# false_positive_rate, true_positive_rate, _ = metrics.roc_curve(true_values, y_score[:, 1])
 		
-		# plot roc curve
-		plt.figure(dpi=100)
-		plt.axis('scaled')
-		plt.xlim([0, 1])
-		plt.ylim([0, 1])
-		plt.title("AUC & ROC Curve")
-		plt.plot(false_positive_rate, true_positive_rate, 'g')
-		plt.fill_between(false_positive_rate, true_positive_rate, facecolor='lightgreen', alpha=0.7)
-		plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
-		plt.xlabel("False Positive Rate")
-		plt.ylabel("True Positive Rate")
-		plt.show()
+		# # plot roc curve
+		# plt.figure(dpi=100)
+		# plt.axis('scaled')
+		# plt.xlim([0, 1])
+		# plt.ylim([0, 1])
+		# plt.title("AUC & ROC Curve")
+		# plt.plot(false_positive_rate, true_positive_rate, 'g')
+		# plt.fill_between(false_positive_rate, true_positive_rate, facecolor='lightgreen', alpha=0.7)
+		# plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
+		# plt.xlabel("False Positive Rate")
+		# plt.ylabel("True Positive Rate")
+		# plt.show()
 
 		return auc
 	
@@ -69,19 +69,19 @@ def auc(true_values, y_score, labels=None):
 		# the final auc value is mean of auc between all classes
 		auc /= (i+1)
 
-		# plot roc curve
-		plt.figure(dpi=100)
-		plt.axis('scaled')
-		plt.xlim([0, 1])
-		plt.ylim([0, 1])
-		plt.title("AUC & ROC Curve")
-		for i in range(number_of_classes):
-			plt.plot(false_positives[i], true_positives[i], color='g', label='class {}'.format(labels[i]))
-			plt.fill_between(false_positives[i], true_positives[i], facecolor='lightgreen', alpha=0.7)
-		plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
-		plt.xlabel("False Positive Rate")
-		plt.ylabel("True Positive Rate")
-		plt.show()
+		# # plot roc curve
+		# plt.figure(dpi=100)
+		# plt.axis('scaled')
+		# plt.xlim([0, 1])
+		# plt.ylim([0, 1])
+		# plt.title("AUC & ROC Curve")
+		# for i in range(number_of_classes):
+		# 	plt.plot(false_positives[i], true_positives[i], color='g', label='class {}'.format(labels[i]))
+		# 	plt.fill_between(false_positives[i], true_positives[i], facecolor='lightgreen', alpha=0.7)
+		# plt.text(0.95, 0.05, 'AUC = %0.4f' % auc, ha='right', fontsize=12, weight='bold', color='blue')
+		# plt.xlabel("False Positive Rate")
+		# plt.ylabel("True Positive Rate")
+		# plt.show()
 
 		return auc
 
@@ -107,19 +107,19 @@ def aupr(true_values, probas_pred, labels):
 		# the final aupr value is mean of aupr between all classes
 		auc_precision_recall /= (i+1)
 
-		# plot the precision - recall graph
-		plt.figure(dpi=100)
-		plt.axis('scaled')
-		plt.xlim([0, 1])
-		plt.ylim([0, 1])
-		plt.title("PR ROC Curve")
-		for i in range(number_of_classes):
-			plt.plot(recall[i], precision[i], color='g', label='class {}'.format(labels[i]))
-			plt.fill_between(recall[i], precision[i], facecolor='lightgreen', alpha=0.7)
-		plt.text(0.95, 0.05, 'AUPR = %0.4f' % auc_precision_recall, ha='right', fontsize=12, weight='bold', color='blue')
-		plt.xlabel("Recall/True Positive Rate")
-		plt.ylabel("Precision")
-		plt.show()
+		# # plot the precision - recall graph
+		# plt.figure(dpi=100)
+		# plt.axis('scaled')
+		# plt.xlim([0, 1])
+		# plt.ylim([0, 1])
+		# plt.title("PR ROC Curve")
+		# for i in range(number_of_classes):
+		# 	plt.plot(recall[i], precision[i], color='g', label='class {}'.format(labels[i]))
+		# 	plt.fill_between(recall[i], precision[i], facecolor='lightgreen', alpha=0.7)
+		# plt.text(0.95, 0.05, 'AUPR = %0.4f' % auc_precision_recall, ha='right', fontsize=12, weight='bold', color='blue')
+		# plt.xlabel("Recall/True Positive Rate")
+		# plt.ylabel("Precision")
+		# plt.show()
 	
 		return auc_precision_recall
 	
@@ -130,18 +130,18 @@ def aupr(true_values, probas_pred, labels):
 		# Use AUC function to calculate the area under the curve of precision recall curve
 		auc_precision_recall = metrics.auc(recall, precision)
 
-		# plot the precision vs recall graph
-		plt.figure(dpi=100)
-		plt.axis('scaled')
-		plt.xlim([0, 1])
-		plt.ylim([0, 1])
-		plt.title("PR ROC Curve")
-		plt.plot(recall, precision, 'g')
-		plt.fill_between(recall, precision, facecolor='lightgreen', alpha=0.7)
-		plt.text(0.95, 0.05, 'AUPR = %0.4f' % auc_precision_recall, ha='right', fontsize=12, weight='bold', color='blue')
-		plt.xlabel("Recall/True Positive Rate")
-		plt.ylabel("Precision")
-		plt.show()
+		# # plot the precision vs recall graph
+		# plt.figure(dpi=100)
+		# plt.axis('scaled')
+		# plt.xlim([0, 1])
+		# plt.ylim([0, 1])
+		# plt.title("PR ROC Curve")
+		# plt.plot(recall, precision, 'g')
+		# plt.fill_between(recall, precision, facecolor='lightgreen', alpha=0.7)
+		# plt.text(0.95, 0.05, 'AUPR = %0.4f' % auc_precision_recall, ha='right', fontsize=12, weight='bold', color='blue')
+		# plt.xlabel("Recall/True Positive Rate")
+		# plt.ylabel("Precision")
+		# plt.show()
 
 		return auc_precision_recall
 
