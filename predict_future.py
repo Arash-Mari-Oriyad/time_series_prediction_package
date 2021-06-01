@@ -153,13 +153,14 @@ def predict_future(data: pd.DataFrame or str,
     testing_data_spatial_ids = normal_testing_target['spatial id'].copy()
     testing_data_temporal_ids = normal_testing_target['temporal id'].copy()
 
-    # ? classification
     data_to_save = pd.DataFrame()
     data_to_save.loc[:, 'spatial id'] = testing_data_spatial_ids
     data_to_save.loc[:, 'temporal id'] = testing_data_temporal_ids
     data_to_save.loc[:, 'model name'] = model if isinstance(model, str) else model.__name__
     data_to_save.loc[:, 'real'] = None
-    data_to_save.loc[:, 'prediction'] = normal_testing_predictions
+    converted_normal_testing_predictions = list(zip(*normal_testing_predictions))
+    for index, label in enumerate(labels):
+        data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
 
     save_predictions_address = \
         f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
