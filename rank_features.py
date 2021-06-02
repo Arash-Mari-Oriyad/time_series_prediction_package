@@ -7,7 +7,19 @@ import get_target_quantities
 
 
 def rank_features(data,
-                  ranking_method: str):
+                  ranking_method: str = 'mRMR',
+                  forced_covariates: list = []):
+
+    # inputs checking
+    # data checking
+    if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
+        sys.exit("Error: The input 'data' must be a dataframe or an address to a dataframe.")
+    # ranking_method checking
+    if ranking_method not in configurations.RANKING_METHODS:
+        sys.exit(f"Error: The input 'ranking_method' is not valid. Valid options are {configurations.RANKING_METHODS}.")
+    # forced_covariates checking
+    if not isinstance(forced_covariates, list):
+        sys.exit("Error: The input 'forced_covariates' must be a list of covariates or an empty list.")
 
     if isinstance(data, str):
         try:
@@ -19,14 +31,32 @@ def rank_features(data,
     else:
         sys.exit("The data input format is not valid.")
 
+    # forced_covariates manipulation
+    forced_covariates = list(set(forced_covariates))
+    forced_covariates = [forced_covariate
+                         for forced_covariate in forced_covariates
+                         if forced_covariate is not None and forced_covariate != '']
+
     _, _, _, data = get_target_quantities.get_target_quantities(data.copy())
 
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
-    futuristic_features = [column_name
-                           for column_name in data.columns.values
-                           if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
-    data.drop(futuristic_features, axis=1, inplace=True)
+
+    forced_features = []
+    for forced_covariate in forced_covariates:
+        if forced_covariate in data.columns.values:
+            forced_features.append(forced_covariate)
+        if forced_covariate + ' t' in data.columns.values:
+            forced_features.append(forced_covariate + ' t')
+        for column_name in data.columns.values:
+            if column_name.startswith(forced_covariate + ' t-'):
+                forced_features.append(column_name)
+        for column_name in data.columns.values:
+            if column_name.startswith(forced_covariate + ' t+'):
+                forced_features.append(column_name)
+    forced_features.sort()
+
+    data.drop(forced_features, axis=1, inplace=True)
 
     cor = data.corr().abs()
     valid_feature = cor.index.drop([configurations.TARGET_COLUMN_NAME])
@@ -53,6 +83,6 @@ def rank_features(data,
     else:
         ix = data.corr().abs().sort_values(configurations.TARGET_COLUMN_NAME, ascending=False).index.drop(
             [configurations.TARGET_COLUMN_NAME])
-    ranked_features = futuristic_features
+    ranked_features = forced_features
     ranked_features.extend(ix)
     return ranked_features
