@@ -20,6 +20,7 @@ def predict(data: list,
             target_scaler: str = None,
             test_type: str = 'whole-as-one',
             feature_sets: dict = {'covariate': 'mRMR'},
+            forced_covariates: list = [],
             model_type: str = 'regression',
             models: list = ['knn'],
             instance_testing_size: int or float = 0.2,
@@ -44,6 +45,7 @@ def predict(data: list,
         target_scaler:
         test_type:
         feature_sets:
+        forced_covariates:
         model_type:
         models:
         instance_testing_size:
@@ -92,6 +94,9 @@ def predict(data: list,
     if not (list(feature_sets.keys())[0] in configurations.FEATURE_SELECTION_TYPES
             and list(feature_sets.values())[0] in configurations.RANKING_METHODS):
         sys.exit("feature_sets input is not valid.")
+    # forced_covariates checking
+    if not isinstance(forced_covariates, list):
+        sys.exit("Error: The input 'forced_covariates' must be a list of covariates or an empty list.")
     # model_type input checking
     if model_type not in configurations.MODEL_TYPES:
         sys.exit("model_type input is not valid.")
@@ -175,6 +180,12 @@ def predict(data: list,
         except Exception as e:
             sys.exit(str(e))
 
+    # forced_covariates manipulation
+    forced_covariates = list(set(forced_covariates))
+    forced_covariates = [forced_covariate
+                         for forced_covariate in forced_covariates
+                         if forced_covariate is not None and forced_covariate != '']
+
     # classification checking
     labels = None
     if model_type == 'classification':
@@ -229,20 +240,24 @@ def predict(data: list,
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
     # ranking
+    print('Ranking Process')
     feature_selection_type = list(feature_sets.keys())[0]
     ranking_method = list(feature_sets.values())[0]
     ordered_covariates_or_features = []
     if feature_selection_type == 'covariate':
         ordered_covariates_or_features = rank_covariates(data=data[0].copy(),
-                                                         ranking_method=ranking_method)
+                                                         ranking_method=ranking_method,
+                                                         forced_covariates=forced_covariates)
     else:
         for d in data:
             ordered_covariates_or_features.append(rank_features(data=d.copy(),
-                                                                ranking_method=ranking_method))
-    ordered_covariates_or_features = ordered_covariates_or_features[:7]
+                                                                ranking_method=ranking_method,
+                                                                forced_covariates=forced_covariates))
+    # ordered_covariates_or_features = ordered_covariates_or_features[:7]
 
     # main process
     if test_type == 'whole-as-one':
+        print('Whole As One')
         # train_validate
         print(100 * '-')
         print('Train Validate Process')
@@ -285,7 +300,6 @@ def predict(data: list,
                                                        performance_report=testing_performance_report,
                                                        save_predictions=save_predictions,
                                                        verbose=verbose)
-        sys.exit('Finished')
         # predict_future
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
             train_validate(data=[d.copy() for d in data],
@@ -310,7 +324,6 @@ def predict(data: list,
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
         temp = forecast_horizon - 1
-
         trained_model = predict_future(data=best_data[best_data['temporal id'].isin((best_data_temporal_ids
                                                                                      if temp == 0
                                                                                      else best_data_temporal_ids[:-temp]
@@ -329,13 +342,14 @@ def predict(data: list,
                                        verbose=verbose)
 
     elif test_type == 'one-by-one':
+        print('One By One')
         # loop over test points
         data_temporal_ids = [d['temporal id'].unique() for d in data]
         if isinstance(instance_testing_size, float):
-            instance_testing_size = int(instance_testing_size * len(data_temporal_ids[0]))
+            instance_testing_size = int(round(instance_testing_size * len(data_temporal_ids[0])))
         for i in range(instance_testing_size):
-            print(150 * '#')
-            print('i =', i + 1)
+            print(100 * '#')
+            print('test_point =', i + 1)
             # train_validate
             print(100 * '-')
             print('Train Validate Process')
@@ -386,7 +400,6 @@ def predict(data: list,
                                                            performance_report=testing_performance_report,
                                                            save_predictions=save_predictions,
                                                            verbose=verbose)
-
         # predict_future
         print(100 * '-')
         print('Train Validate Process')
@@ -440,27 +453,27 @@ def predict(data: list,
 
 
 if __name__ == '__main__':
-    # input_data = [f'usa_data/historical_data h={i}.csv' for i in range(1, 4)]
-    # input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 11)]
+    input_data = [f'usa_data/historical_data h={i}.csv' for i in range(1, 4)]
+    # input_data = [f'canada_data/historical_data h={i}.csv' for i in range(1, 6)]
     # input_data = [f'my_data/historical_data h={i}.csv' for i in range(1, 2)]
-    # input_data = ['my_data/sample.csv']
-    input_data = [f'mbp_data/historical_data h={i}.csv' for i in range(1, 2)]
+    # input_data = [f'mbp_data/historical_data h={i}.csv' for i in range(1, 2)]
     predict(data=input_data,
             forecast_horizon=4,
             feature_scaler='logarithmic',
             target_scaler=None,
-            test_type='whole-as-one',
+            test_type='one-by-one',
             feature_sets={'covariate': 'mRMR'},
-            model_type='classification',
+            forced_covariates=['social-distancing-encounters-grade', 'virus-pressure'],
+            model_type='regression',
             models=['knn', 'gbm'],
             instance_testing_size=0.2,
             splitting_type='training-validation',
             instance_validation_size=0.3,
             instance_random_partitioning=False,
             fold_total_number=5,
-            performance_benchmark='AUC',
+            performance_benchmark='MAE',
             performance_mode='normal',
-            performance_measures=['AUC', 'likelihood'],
+            performance_measures=['MAE', 'MAPE'],
             scenario='current',
             validation_performance_report=True,
             testing_performance_report=True,
