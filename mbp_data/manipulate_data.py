@@ -6,7 +6,7 @@ print(mbp_data.shape)
 print(mbp_data['Target (normal)'].unique())
 print(mbp_data['spatial id'].nunique())
 
-temp_spatial_ids = mbp_data['spatial id'].values.tolist()[:1000]
+temp_spatial_ids = mbp_data['spatial id'].values.tolist()[:300]
 
 changed_mbp_data = mbp_data[mbp_data['spatial id'].isin(temp_spatial_ids)].copy()
 
