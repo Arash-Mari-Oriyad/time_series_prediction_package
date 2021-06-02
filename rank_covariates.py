@@ -7,7 +7,19 @@ import get_target_quantities
 
 
 def rank_covariates(data: str or pd.DataFrame,
-                    ranking_method: str):
+                    ranking_method: str = 'mRMR',
+                    forced_covariates: list = []):
+    # inputs checking
+    # data checking
+    if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
+        sys.exit("Error: The input 'data' must be a dataframe or an address to a dataframe.")
+    # ranking_method checking
+    if ranking_method not in configurations.RANKING_METHODS:
+        sys.exit(f"Error: The input 'ranking_method' is not valid. Valid options are {configurations.RANKING_METHODS}.")
+    # forced_covariates checking
+    if not isinstance(forced_covariates, list):
+        sys.exit("Error: The input 'forced_covariates' must be a list of covariates or an empty list.")
+
     if isinstance(data, str):
         try:
             data = pd.read_csv(data)
@@ -17,6 +29,12 @@ def rank_covariates(data: str or pd.DataFrame,
         pass
     else:
         sys.exit("The data input format is not valid.")
+
+    # forced_covariates manipulation
+    forced_covariates = list(set(forced_covariates))
+    forced_covariates = [forced_covariate
+                         for forced_covariate in forced_covariates
+                         if forced_covariate is not None and forced_covariate != '']
 
     _, _, _, data = get_target_quantities.get_target_quantities(data.copy())
 
@@ -28,12 +46,35 @@ def rank_covariates(data: str or pd.DataFrame,
                                  if len(column_name.split()) > 1 and column_name.split()[1].startswith('t-')]
     data.drop(deleted_temporal_features, axis=1, inplace=True)
     futuristic_covariates = list(set([column_name.split()[0] + ' t+'
-                                 for column_name in data.columns.values
-                                 if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]))
+                                      for column_name in data.columns.values
+                                      if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]))
     futuristic_features = [column_name
                            for column_name in data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
-    data.drop(futuristic_features, axis=1, inplace=True)
+    futuristic_covariates.sort()
+    futuristic_features.sort()
+    for futuristic_covariate in futuristic_covariates:
+        is_first = True
+        for futuristic_feature in futuristic_features:
+            if futuristic_feature.startswith(futuristic_covariate):
+                if is_first:
+                    data.rename(columns={futuristic_feature: futuristic_covariate}, inplace=True)
+                    is_first = False
+                else:
+                    data.drop(futuristic_feature, axis=1, inplace=True)
+
+    temp_forced_covariates = []
+    for forced_covariate in forced_covariates:
+        if forced_covariate in data.columns.values:
+            temp_forced_covariates.append(forced_covariate)
+        if forced_covariate + ' t' in data.columns.values:
+            temp_forced_covariates.append(forced_covariate + ' t')
+        for column_name in data.columns.values:
+            if column_name == forced_covariate + ' t+':
+                temp_forced_covariates.append(column_name)
+    temp_forced_covariates.sort()
+
+    data.drop(temp_forced_covariates, axis=1, inplace=True)
 
     cor = data.corr().abs()
     valid_feature = cor.index.drop([configurations.TARGET_COLUMN_NAME])
@@ -60,6 +101,6 @@ def rank_covariates(data: str or pd.DataFrame,
     else:
         ix = data.corr().abs().sort_values(configurations.TARGET_COLUMN_NAME, ascending=False).index.drop(
             [configurations.TARGET_COLUMN_NAME])
-    ranked_covariates = futuristic_covariates
+    ranked_covariates = temp_forced_covariates
     ranked_covariates.extend(ix)
     return ranked_covariates
