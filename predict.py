@@ -254,6 +254,7 @@ def predict(data: list,
                                                                 ranking_method=ranking_method,
                                                                 forced_covariates=forced_covariates))
     # ordered_covariates_or_features = ordered_covariates_or_features[:7]
+    # print(ordered_covariates_or_features[2])
 
     # main process
     if test_type == 'whole-as-one':
@@ -462,8 +463,8 @@ if __name__ == '__main__':
             feature_scaler='logarithmic',
             target_scaler=None,
             test_type='one-by-one',
-            feature_sets={'covariate': 'mRMR'},
-            forced_covariates=['social-distancing-encounters-grade', 'virus-pressure'],
+            feature_sets={'feature': 'mRMR'},
+            forced_covariates=[],
             model_type='regression',
             models=['knn', 'gbm'],
             instance_testing_size=0.2,
