@@ -237,8 +237,13 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
 def fill_future_nulls(data, futuristic_temporal_units):
         if 'temporal id' in data.columns:
             temporal_identifier_column_name = 'temporal id'
-        elif 'temporal id level 1' in data.columns:
-            temporal_identifier_column_name = 'temporal id level 1'
+        else:
+            for level in range(1,200):
+                if 'temporal id level ' + str(level) in data.columns:
+                    smallest_temporal_level = level
+                    break
+            data = add_dummy_integrated_temporal_id(data.copy(), start_level = smallest_temporal_level)
+            temporal_identifier_column_name = 'dummy temporal id'
         current_data = data[~(data[temporal_identifier_column_name].isin(futuristic_temporal_units))]
         future_data = data[data[temporal_identifier_column_name].isin(futuristic_temporal_units)]
         future_data = future_data.fillna(np.inf)
