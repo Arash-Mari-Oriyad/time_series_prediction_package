@@ -22,6 +22,8 @@ from get_normal_target import get_normal_target
 from get_trivial_values import get_trivial_values
 from apply_performance_mode import apply_performance_mode
 from get_target_quantities import get_target_quantities
+from rank_covariates import rank_covariates
+from rank_features import rank_features
 import warnings
 warnings.filterwarnings("once")
 
@@ -140,11 +142,12 @@ def save_prediction_data_frame(models_name_list, target_real_values, fold_valida
 ###########################################################################################
     
     
-def train_validate(data, ordered_covariates_or_features, instance_validation_size = 0.3, instance_testing_size = 0,
+def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_testing_size = 0,
                    fold_total_number = 5, instance_random_partitioning = False,
                    forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
-                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', feature_scaler = None, target_scaler = None,
-                   labels = None, performance_report = True, save_predictions = True, verbose = 0):
+                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', forced_covariates = [],
+                   feature_scaler = None, target_scaler = None, labels = None, performance_report = True,
+                   save_predictions = True, verbose = 0):
     
     
     supported_models_name = ['nn', 'knn', 'glm', 'gbm']
@@ -379,40 +382,21 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
         raise ValueError("The specified model_type is not valid. The supported values are 'regression' and 'classification'.")
     
     
-    ############## ordered_covariates_or_features and feature_sets_indices
-
-    if type(ordered_covariates_or_features) == list:
-        second_level_type_list = [isinstance(item,list) for item in ordered_covariates_or_features]
-        second_level_type_str = [isinstance(item,str) for item in ordered_covariates_or_features]
-        if all(second_level_type_list):
-            feature_selection_type = 'feature'
-            if len(ordered_covariates_or_features) != max_history:
-                raise ValueError("The number of feature lists in ordered_covariates_or_features does not match the number of input data.")
-        elif all(second_level_type_str):
-            feature_selection_type = 'covariate'
-            repeated_list = [ordered_covariates_or_features for history in range(max_history)]
-            ordered_covariates_or_features = repeated_list
-    else:
-        raise TypeError("The ordered_covariates_or_features must be of type list.")
-
-    feature_sets_indices = [] # feature_set_indices set of all history lengths
-    for history in range(max_history):
-        history_feature_sets_indices = [] # feature_set_indices for specific history length
-
-        # the start point for considering number of features or covariates in feature set indices
-        # if futuristic covariates exist in the list, the start point will set in a way to always
-        # consider futuristic covariates in the index
-        start_point = 0
-        for feature in ordered_covariates_or_features[history]:
-            if len(feature.split(' '))>1:
-                if '+' in feature.split(' ')[1]:
-                    start_point +=1
-
-        if start_point == 0 : start_point = 1
-        for number_of_features in range(start_point,len(ordered_covariates_or_features[history])+1):
-            history_feature_sets_indices.append(list(range(number_of_features)))
-        feature_sets_indices.append(history_feature_sets_indices)
-                
+    ############## feature_sets, forced_covariates
+    
+    if (type(feature_sets) != dict) or (len(feature_sets) > 1):
+        raise TypeError("The feature_sets input must be of type dictionary with only one item.")
+        
+    feature_selection_type = list(feature_sets.keys())[0]
+    ranking_method = list(feature_sets.values())[0]
+    if feature_selection_type not in ['covariate','feature']:
+        raise ValueError("The key of the feature_sets dictionary must be 'covariate' or 'feature'.")
+    if ranking_method not in ['mRMR', 'CORRELATION']:
+        raise ValueError("The value of the item in the feature_sets dictionary must be 'mRMR' or 'CORRELATION'.")
+    
+    if type(forced_covariates) != list:
+        raise TypeError("The forced_covariates input must be of type list.")
+        
     ############## splitting_type, fold_total_number, instance_testing_size, and instance_validation_size inputs
     
     # check validity of fold_total_number
@@ -515,10 +499,55 @@ def train_validate(data, ordered_covariates_or_features, instance_validation_siz
     knn_alert_flag = 0
     number_of_temporal_units = len(data_list[0]['temporal id'].unique())
     
-    
     #################################################### main part
     
-    # (loop over history_length, feature_sets_indices, and folds)
+    ########################## ranking
+    
+    ordered_covariates_or_features = []
+    
+    for history in range(1,max_history+1):
+        
+        if feature_selection_type == 'feature':
+            data = data_list[history-1].copy()
+        else:
+            data = data_list[0].copy()
+        
+        # separating the test part
+        raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
+                                                  instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
+                                                  instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
+        
+        if feature_selection_type == 'feature':
+            ordered_covariates_or_features.append(rank_features(data=raw_train_data.copy(),
+                                                                    ranking_method=ranking_method,
+                                                                    forced_covariates=forced_covariates))
+        else:
+            ordered_covariates_or_features.append(rank_covariates(data=raw_train_data.copy(),
+                                                                    ranking_method=ranking_method,
+                                                                    forced_covariates=forced_covariates))
+            
+    feature_sets_indices = [] # feature_set_indices set of all history lengths
+    for history in range(max_history):
+        history_feature_sets_indices = [] # feature_set_indices for specific history length
+
+        # the start point for considering number of features or covariates in feature set indices
+        # if futuristic covariates exist in the list, the start point will set in a way to always
+        # consider forced covariates in the index
+        start_point = 0
+        for feature in ordered_covariates_or_features[history]:
+            if len(feature.split(' '))>1:
+                if feature.split(' ')[0] in forced_covariates:
+                    start_point +=1
+            else:
+                if feature in forced_covariates:
+                    start_point +=1
+                    
+        if start_point == 0 : start_point = 1
+        for number_of_features in range(start_point,len(ordered_covariates_or_features[history])+1):
+            history_feature_sets_indices.append(list(range(number_of_features)))
+        feature_sets_indices.append(history_feature_sets_indices)
+    
+    ########################## (loop over history_length, feature_sets_indices, and folds)
     
     for history in range(1,max_history+1):
         
