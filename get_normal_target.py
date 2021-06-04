@@ -24,7 +24,7 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
     test_dates = list(test_target['temporal id'].unique())
     
     data = training_target.append(test_target)
-
+    
     # if target mode is cumulative we need to return the target variable to its original state
     if target_mode == 'cumulative':
 
@@ -47,7 +47,7 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
                 break
 
     # if target mode is moving average we need to return the target variable to its original state
-    elif target_mode == 'moving average':
+    elif target_mode == 'moving_average':
 
         # practical accessible values (target real values in training set and predicted values in test set) will be used 
         # for returning the moving average target (predicted) to original state
@@ -103,7 +103,7 @@ def get_normal_target(training_target, test_target, training_prediction, test_pr
                 break
 
     else:
-        sys.exit("The target_mode is not valid.")
+        raise ValueError("The target_mode is not valid.")
         
     data = data.sort_values(by=['temporal id', 'spatial id'])
     training_set = data[data['type'] == 1]
