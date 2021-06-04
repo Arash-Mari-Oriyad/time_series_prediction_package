@@ -35,7 +35,7 @@ def get_trivial_values(train_true_values_df, validation_true_values_df, train_pr
     whole_data = whole_data.sort_values(by = ['temporal id', 'spatial id'])
     
     accessible_data = whole_data.copy().iloc[(forecast_horizon * granularity * number_of_spatial_units):,:]
-    accessible_data['trivial values'] = whole_data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units),:]['Normal target']
+    accessible_data['trivial values'] = list(whole_data.iloc[:-(forecast_horizon * granularity * number_of_spatial_units),:]['Normal target'])
     
     train_true_values = list(np.array(accessible_data.loc[accessible_data['type'] == 1,'Normal target']).reshape(-1))
     train_predicted_values = list(np.array(accessible_data.loc[accessible_data['type'] == 1,'prediction']).reshape(-1))
