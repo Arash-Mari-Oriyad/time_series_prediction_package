@@ -7,8 +7,6 @@ import pandas as pd
 import configurations
 from get_future_data import get_future_data
 from get_target_quantities import get_target_quantities
-from rank_covariates import rank_covariates
-from rank_features import rank_features
 from train_validate import train_validate
 from train_test import train_test
 from predict_future import predict_future
@@ -180,11 +178,11 @@ def predict(data: list,
         except Exception as e:
             sys.exit(str(e))
 
-    # forced_covariates manipulation
-    forced_covariates = list(set(forced_covariates))
-    forced_covariates = [forced_covariate
-                         for forced_covariate in forced_covariates
-                         if forced_covariate is not None and forced_covariate != '']
+    # # forced_covariates manipulation
+    # forced_covariates = list(set(forced_covariates))
+    # forced_covariates = [forced_covariate
+    #                      for forced_covariate in forced_covariates
+    #                      if forced_covariate is not None and forced_covariate != '']
 
     # classification checking
     labels = None
@@ -239,22 +237,22 @@ def predict(data: list,
 
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
-    # ranking
-    print('Ranking Process')
-    feature_selection_type = list(feature_sets.keys())[0]
-    ranking_method = list(feature_sets.values())[0]
-    ordered_covariates_or_features = []
-    if feature_selection_type == 'covariate':
-        ordered_covariates_or_features = rank_covariates(data=data[0].copy(),
-                                                         ranking_method=ranking_method,
-                                                         forced_covariates=forced_covariates)
-    else:
-        for d in data:
-            ordered_covariates_or_features.append(rank_features(data=d.copy(),
-                                                                ranking_method=ranking_method,
-                                                                forced_covariates=forced_covariates))
-    # ordered_covariates_or_features = ordered_covariates_or_features[:7]
-    # print(ordered_covariates_or_features[2])
+    # # ranking
+    # print('Ranking Process')
+    # feature_selection_type = list(feature_sets.keys())[0]
+    # ranking_method = list(feature_sets.values())[0]
+    # ordered_covariates_or_features = []
+    # if feature_selection_type == 'covariate':
+    #     ordered_covariates_or_features = rank_covariates(data=data[0].copy(),
+    #                                                      ranking_method=ranking_method,
+    #                                                      forced_covariates=forced_covariates)
+    # else:
+    #     for d in data:
+    #         ordered_covariates_or_features.append(rank_features(data=d.copy(),
+    #                                                             ranking_method=ranking_method,
+    #                                                             forced_covariates=forced_covariates))
+    # # ordered_covariates_or_features = ordered_covariates_or_features[:7]
+    # # print(ordered_covariates_or_features[2])
 
     # main process
     if test_type == 'whole-as-one':
@@ -267,7 +265,7 @@ def predict(data: list,
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
-                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           feature_sets=feature_sets,
                            model_type=model_type,
                            labels=labels,
                            models=models,
@@ -307,7 +305,7 @@ def predict(data: list,
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
-                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           feature_sets=feature_sets,
                            model_type=model_type,
                            labels=labels,
                            models=models,
@@ -362,7 +360,7 @@ def predict(data: list,
                                forecast_horizon=forecast_horizon,
                                feature_scaler=feature_scaler,
                                target_scaler=target_scaler,
-                               ordered_covariates_or_features=ordered_covariates_or_features,
+                               feature_sets=feature_sets,
                                model_type=model_type,
                                labels=labels,
                                models=models,
@@ -409,7 +407,7 @@ def predict(data: list,
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
-                           ordered_covariates_or_features=ordered_covariates_or_features,
+                           feature_sets=feature_sets,
                            model_type=model_type,
                            labels=labels,
                            models=models,
