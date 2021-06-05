@@ -37,7 +37,8 @@ def rank_features(data,
                          for forced_covariate in forced_covariates
                          if forced_covariate is not None and forced_covariate != '']
 
-    _, _, _, data = get_target_quantities.get_target_quantities(data.copy())
+    if configurations.TARGET_COLUMN_NAME not in data.columns.values:
+        _, _, _, data = get_target_quantities.get_target_quantities(data.copy())
 
     data.drop(configurations.NON_FEATURE_COLUMNS_NAMES, axis=1, inplace=True)
     data.drop(configurations.NORMAL_TARGET_COLUMN_NAME, axis=1, inplace=True)
