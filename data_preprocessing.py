@@ -1598,18 +1598,20 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
             print("-"*45+"\nThe imputation of missing values is running.\n"+"-"*45+"\n")
             
         temporal_data = impute(temporal_data.copy(), None, verbose = 0)
-        number_of_raw_spatial_units = spatial_data.shape[0]
-        spatial_data.dropna(inplace = True)
-        number_of_removed_spatial_units = number_of_raw_spatial_units - spatial_data.shape[0]
+        if spatial_data is not None:
+            number_of_raw_spatial_units = spatial_data.shape[0]
+            spatial_data.dropna(inplace = True)
+            number_of_removed_spatial_units = number_of_raw_spatial_units - spatial_data.shape[0]
 
-        if number_of_removed_spatial_units == number_of_raw_spatial_units:
-            raise ValueError("All the spatial units include missing values for spatial covariates. Therefore, no spatial unit remains to make a prediction.\n")
-        elif number_of_removed_spatial_units > 0:
-            print('\nWarning: The number of {0} spatial units has missing values for spatial covariates and will be removed from the data.\n'.format(number_of_removed_spatial_units))
+            if number_of_removed_spatial_units == number_of_raw_spatial_units:
+                raise ValueError("All the spatial units include missing values for spatial covariates. Therefore, no spatial unit remains to make a prediction.\n")
+            elif number_of_removed_spatial_units > 0:
+                print('\nWarning: The number of {0} spatial units has missing values for spatial covariates and will be removed from the data.\n'.format(number_of_removed_spatial_units))
 
         # Holding only the spatial units that are common in both data frames
-        temporal_data = temporal_data[temporal_data['spatial id level 1'].isin(spatial_data['spatial id level 1'].unique())]
-        spatial_data = spatial_data[spatial_data['spatial id level 1'].isin(temporal_data['spatial id level 1'].unique())]
+        if spatial_data is not None:
+            temporal_data = temporal_data[temporal_data['spatial id level 1'].isin(spatial_data['spatial id level 1'].unique())]
+            spatial_data = spatial_data[spatial_data['spatial id level 1'].isin(temporal_data['spatial id level 1'].unique())]
     
 
         
