@@ -178,11 +178,11 @@ def predict(data: list,
         except Exception as e:
             sys.exit(str(e))
 
-    # # forced_covariates manipulation
-    # forced_covariates = list(set(forced_covariates))
-    # forced_covariates = [forced_covariate
-    #                      for forced_covariate in forced_covariates
-    #                      if forced_covariate is not None and forced_covariate != '']
+    # forced_covariates manipulation
+    forced_covariates = list(set(forced_covariates))
+    forced_covariates = [forced_covariate
+                         for forced_covariate in forced_covariates
+                         if forced_covariate is not None and forced_covariate != '']
 
     # classification checking
     labels = None
@@ -266,6 +266,7 @@ def predict(data: list,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
                            feature_sets=feature_sets,
+                           forced_covariates=forced_covariates,
                            model_type=model_type,
                            labels=labels,
                            models=models,
@@ -306,6 +307,7 @@ def predict(data: list,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
                            feature_sets=feature_sets,
+                           forced_covariates=forced_covariates,
                            model_type=model_type,
                            labels=labels,
                            models=models,
@@ -359,6 +361,7 @@ def predict(data: list,
                                 for index, d in enumerate(data)],
                                forecast_horizon=forecast_horizon,
                                feature_scaler=feature_scaler,
+                               forced_covariates=forced_covariates,
                                target_scaler=target_scaler,
                                feature_sets=feature_sets,
                                model_type=model_type,
@@ -408,6 +411,7 @@ def predict(data: list,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
                            feature_sets=feature_sets,
+                           forced_covariates=forced_covariates,
                            model_type=model_type,
                            labels=labels,
                            models=models,
