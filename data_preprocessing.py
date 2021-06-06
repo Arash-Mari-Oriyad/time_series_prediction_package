@@ -1852,7 +1852,8 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
 ######################
 
 def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial_scale = 1, spatial_id = None,
-              temporal_scale = 1, temporal_range = None, month_format_print=False, saving_plot_path = None):
+              temporal_scale = 1, temporal_range = None, column_identifier = None, month_format_print=False,
+              saving_plot_path = None):
     
     ######################### check validity of input arguments    
     if type(data) == str:
@@ -1865,6 +1866,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
         raise TypeError("The input data must be of type DataFrame or string.")
     
     df = rename_columns(data, column_identifier)
+    check_validity(df.copy(), input_name = 'data', data_type = 'temporal')
     
     if type(spatial_id) == list:
         if len(spatial_id)>3 :
@@ -1934,11 +1936,11 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
         ##### month name for non-integrated ###############
         
         if month_format_print==True:
+          if column_identifier is not None:
             for values in column_identifier.values():
                 if values == 'month':
                     month_index = [*column_identifier.values()].index(values)
                     temporal_id_x = [*column_identifier.keys()][month_index]
-
             try:
                 df[temporal_id_x] = df[temporal_id_x].apply(lambda x : calendar.month_name[x])
             except(IndexError,TypeError):
@@ -2018,10 +2020,12 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
         ax.spines['right'].set_visible(False)
         plt.margins(0.1)
         plt.subplots_adjust(bottom=0.15)
+        figure_to_save = plt.gcf()
+        plt.show()
         
         if saving_plot_path is not None:
             try:
-                plt.savefig(saving_plot_path + par +' evolution.png', bbox_inches='tight')
+                figure_to_save.savefig(saving_plot_path + par +' evolution.png', bbox_inches='tight')
             except FileNotFoundError:
                 print("The address '{0}' is not valid.".format(saving_plot_path))
         plt.close()
