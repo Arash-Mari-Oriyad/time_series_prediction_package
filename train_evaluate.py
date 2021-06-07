@@ -117,8 +117,8 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
     elif callable(model):
         try:
             train_predictions, validation_predictions, trained_model = model(X_training, X_validation, Y_training)
-        except:
-            raise Exception("The user-defined model '{0}' is not compatible with the definition.".format(model.__name__))
+        except Exception as ex:
+            raise Exception("The user-defined model '{0}' encountered an error:\n\t   {1}\n\n{2}".format(model.__name__,str(ex),traceback.format_exc()))
         
         if (type(train_predictions) not in (np.ndarray,list)) or (type(validation_predictions) not in (np.ndarray,list)):
             raise Exception("The output predictions of the user-defined model must be of type array.")
