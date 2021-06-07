@@ -25,6 +25,7 @@ from get_target_quantities import get_target_quantities
 from rank_covariates import rank_covariates
 from rank_features import rank_features
 import warnings
+import multiprocessing
 warnings.filterwarnings("once")
 
 
@@ -498,7 +499,7 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
     
     knn_alert_flag = 0
     number_of_temporal_units = len(data_list[0]['temporal id'].unique())
-    
+    Number_of_cpu = multiprocessing.cpu_count()
     #################################################### main part
     
     ########################## ranking
@@ -564,7 +565,7 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
 
         
         # initializing the pool for parallel run
-        prediction_pool = Pool(processes = len(feature_sets_indices[history-1]) * fold_total_number * len(models_list) + 5)
+        prediction_pool = Pool(processes = Number_of_cpu)
         pool_list = [] # list of all the different combination of the arguments of pool function
         
         for feature_set_number in range(len(feature_sets_indices[history-1])):
