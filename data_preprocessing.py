@@ -158,7 +158,7 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         
     if 'temporal id' in temporal_data.columns:
         temporal_identifier_column_name = 'temporal id'
-        non_futuristic_covariates = list(set(temporal_data.columns) - set(futuristic_covariate_list + ['spatial id level 1', 'temporal id']))
+        non_futuristic_covariates = list(set(temporal_data.columns) - set(futuristic_covariate_list + spatial_id_columns + ['temporal id']))
 
 
     else: # non-integrated temporal id format
@@ -170,7 +170,7 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
         if future_data_table is not None:
             future_data_table = add_dummy_integrated_temporal_id(future_data_table.copy(), start_level = smallest_temporal_level)
         temporal_identifier_column_name = 'dummy temporal id'
-        non_futuristic_covariates = list(set(temporal_data.columns) - set(futuristic_covariate_list + ['spatial id level 1', 'dummy temporal id'] + temporal_id_columns))
+        non_futuristic_covariates = list(set(temporal_data.columns) - set(futuristic_covariate_list + spatial_id_columns + ['dummy temporal id'] + temporal_id_columns))
 
 
     if mode == 'split':
@@ -1574,6 +1574,11 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
     elif forecast_horizon == 0:
         forecast_horizon = 1
         
+    ######################## check type and temporal_scale_level and augmentation
+    
+    if (temporal_scale_level < 2) and (augmentation == True):
+        raise Exception("The augmentation can only be performed for temporal_scale_level greater than one.")
+        
     ######################## check type of future_data_table
     
     if type(future_data_table) == str:
@@ -1615,7 +1620,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
             spatial_data = spatial_data[spatial_data['spatial id level 1'].isin(temporal_data['spatial id level 1'].unique())]
     
 
-        
+    
     # adding future values of futuristic covariates to the data and get the futuristic temporal units
     if future_data_table is not None:
         temporal_data, future_data_table, futuristic_temporal_units = current_future(data = temporal_data.copy(), future_data_table = future_data_table,
@@ -1626,7 +1631,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
                                                               future_data_table = None,
                                                               futuristic_covariates = futuristic_covariates,
                                                               column_identifier = column_identifier , mode = 'split')
-        
+    
     ############################## spatial scale transform ##############################
     
     if spatial_scale_level > 1:
@@ -1658,8 +1663,10 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
         # if aggregation_mode is not dict and is same for all covariates           
         else:
             spatial_aggregation_mode = temporal_aggregation_mode = aggregation_mode
-                  
-        spatial_scale_table = rename_columns(spatial_scale_table.copy(), column_identifier)
+            
+        if spatial_scale_table is not None:
+            spatial_scale_table = rename_columns(spatial_scale_table.copy(), column_identifier)
+        
         # transformation
         temporal_data = spatial_scale_transform(temporal_data.copy(), 'temporal', column_identifier = None, spatial_scale_table = spatial_scale_table, spatial_scale_level = spatial_scale_level, aggregation_mode = temporal_aggregation_mode, verbose = 0)
         if spatial_data is not None:
