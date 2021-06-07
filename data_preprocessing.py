@@ -16,7 +16,8 @@ def rename_columns(data,column_identifier, mode = 'formalize'):
             for key, value in column_identifier.items():
                 if key not in ['temporal covariates','spatial covariates']:
                     if (key == 'target') and (value in column_identifier['temporal covariates']) and (value in data.columns):
-                        data.loc[:,('target')] = list(data[value])
+                        if 'target' not in data.columns:
+                            data.loc[:,('target')] = list(data[value])
                     else:
                         data.rename(columns = {value:key}, inplace = True)
         elif mode == 'deformalize':
