@@ -14,7 +14,7 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
     training_prediction : list of predicted values for the training set
     test_prediction : list of predicted values for the test set
     
-    performance_mode = 'normal' , 'cumulative' , 'moving average + x' the desired mode of the target variable
+    performance_mode = 'normal' , 'cumulative' , 'moving_average + x' the desired mode of the target variable
                         when calculating the performance
                         
     ::: output :::
@@ -35,16 +35,16 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
         return training_target, test_target, training_prediction, test_prediction
         
     # decode performance mode to get the window size of the moving average
-    if performance_mode.startswith('moving average'):
+    if performance_mode.startswith('moving_average'):
         if len(performance_mode.split(' + ')) > 1:
             window = performance_mode.split(' + ')[-1]
-            performance_mode = 'moving average'
+            performance_mode = 'moving_average'
         else:
-            sys.exit("For the moving average performance_mode the window size must also be specifid in the performance_mode with the format 'moving average + x' where x is the window size.")
+            raise ValueError("For the moving average performance_mode the window size must also be specifid in the performance_mode with the format 'moving_average + x' where x is the window size.")
         try:
             window = int(window)
         except ValueError:
-            sys.exit("The specified window for the moving average performance_mode is not valid.")
+            raise ValueError("The specified window for the moving average performance_mode is not valid.")
     
     training_target.loc[:,('type')] = 1
     test_target.loc[:,('type')] = 2
@@ -90,9 +90,9 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
             if index == len(dates) - 2:
                 break
         
-    elif performance_mode == 'moving average':
+    elif performance_mode == 'moving_average':
         if window > len(temporal_ids):
-            sys.exit("The specified window for the moving average performance_mode is too large for the input data.")
+            raise ValueError("The specified window for the moving average performance_mode is too large for the input data.")
         
         number_of_spatial_units = len(data['spatial id'].unique())
         
@@ -132,16 +132,16 @@ def apply_performance_mode(training_target, test_target, training_prediction, te
         # data = data.iloc[(window-1)*number_of_spatial_units:] # ?????????????????????? #
         
     else:
-        sys.exit("Specified performance_mode is not valid.")
+        raise ValueError("Specified performance_mode is not valid.")
         
     data = data.sort_values(by=['temporal id', 'spatial id'])
     training_set = data[data['type'] == 1]
     test_set = data[data['type'] == 2]
     
-    if (len(test_set) < 1) and (performance_mode == 'moving average'):
-        sys.exit("The number of remaining instances in the test set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process)")
-    if (len(training_set) < 1) and (performance_mode == 'moving average'):
-        sys.exit("The number of remaining instances in the training set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process).")
+    if (len(test_set) < 1) and (performance_mode == 'moving_average'):
+        raise Exception("The number of remaining instances in the test set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process)")
+    if (len(training_set) < 1) and (performance_mode == 'moving_average'):
+        raise Exception("The number of remaining instances in the training set is less than one when applying moving average performance_mode (the first 'window - 1' temporal units is removed in the process).")
 
     training_prediction = list(training_set['prediction'])
     test_prediction = list(test_set['prediction'])
