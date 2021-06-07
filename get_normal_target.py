@@ -1,5 +1,6 @@
 import pandas as pd 
 import numpy as np
+pd.options.mode.chained_assignment = None
 
 def get_normal_target(training_target, test_target, training_prediction, test_prediction, target_mode,
                       target_granularity=None):
