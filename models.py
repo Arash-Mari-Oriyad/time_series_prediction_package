@@ -141,7 +141,7 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
 
 
     NeuralNetworkObject = keras.Sequential()
-    NeuralNetworkObject.add(tf.keras.Input(shape=(X_train.shape[1],)))
+    NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
     for layer,neurons in enumerate(parameters['headen_layers_neurons']):
         NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
     NeuralNetworkObject.add(tf.keras.layers.Dense(1, activation=parameters['output_activation']))
@@ -289,7 +289,7 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
         y_to_fit = encoded_y_train.ravel()
     
     NeuralNetworkObject = keras.Sequential()
-    NeuralNetworkObject.add(tf.keras.Input(shape=(X_train.shape[1],)))
+    NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
     for layer,neurons in enumerate(parameters['headen_layers_neurons']):
         NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
     NeuralNetworkObject.add(tf.keras.layers.Dense(output_neurons, activation=parameters['output_activation']))
