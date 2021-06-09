@@ -114,8 +114,8 @@ def train_test(
 	if not(isinstance(model_type, str)):
 		raise TypeError("Expected a string for model_type.")
 	
-	if not(isinstance(model_parameters, list) or model_parameters == None):
-		raise TypeError("Expected a list or None value for model_parameters.")
+	if not(isinstance(model_parameters, dict) or model_parameters == None):
+		raise TypeError("Expected a dictionary or None value for model_parameters.")
 	
 	if not(isinstance(feature_scaler, str) or feature_scaler == None):
 		raise TypeError("Expected a string or None value for feature_scaler.")
