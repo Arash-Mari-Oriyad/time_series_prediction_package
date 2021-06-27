@@ -10,8 +10,10 @@ import calendar
 ###################### renaming the columns to formal format
 
 def rename_columns(data,column_identifier, mode = 'formalize'):
-    
+        
     if type(column_identifier) == dict:
+        if any([key not in list(column_identifier.keys()) for key in ['target','temporal covariates']]):
+            raise ValueError("The target and temporal covariates are not specified in column_identifier.")
         if mode == 'formalize':
             for key, value in column_identifier.items():
                 if key not in ['temporal covariates','spatial covariates']:
@@ -35,7 +37,7 @@ def rename_columns(data,column_identifier, mode = 'formalize'):
 
 ###################### check validity of input data
 
-def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'): 
+def check_validity(data, input_name = 'temporal_data', data_type = 'temporal', column_identifier = None): 
 # data argument could accept temporal_data, full_data, spatial_data, spatial_scale_table or future_data_table
 # the type will be determined based on data_type argument and the input_name argument will
 # be used to produce more clear warning errors
@@ -75,7 +77,15 @@ def check_validity(data, input_name = 'temporal_data', data_type = 'temporal'):
         if 'dummy temporal id' in data.columns:
             data.drop(['dummy temporal id'], axis = 1, inplace = True)
             
-    numerical_columns = list(filter(lambda x: not x.startswith(('spatial id','temporal id','dummy temporal id')),data.columns))
+    if column_identifier is None:
+        numerical_columns = list(filter(lambda x: x.startswith(('temporal covariate','spatial covariate','target')),data.columns))
+    elif all([key in list(column_identifier.keys()) for key in ['target','spatial covariates','temporal covariates']]):
+        numerical_columns = list(filter(lambda x: x in(['target']+column_identifier['spatial covariates']+column_identifier['temporal covariates']),data.columns))
+    elif all([key in list(column_identifier.keys()) for key in ['target','temporal covariates']]):
+        numerical_columns = list(filter(lambda x: x in(['target']+column_identifier['temporal covariates']),data.columns))
+    else:
+        raise ValueError("The target and temporal covariates are not specified in column_identifier.")
+        
     for covar in numerical_columns:
         try:
             data[covar].astype(float)
@@ -117,7 +127,7 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
     futuristic_covariate_list = list(futuristic_covariates.keys())
 
     data = rename_columns(data.copy(), column_identifier)
-    check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
+    check_validity(data.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
     
     if column_identifier is None:
         spatial_covariates = list(filter(lambda x:x.startswith('spatial covariate'), data.columns))
@@ -145,7 +155,8 @@ def current_future(data, future_data_table, futuristic_covariates, column_identi
     
     if future_data_table is not None:
         future_data_table = rename_columns(future_data_table.copy(), column_identifier)
-        check_validity(future_data_table.copy(), input_name = 'future_data_table', data_type = 'temporal')
+        check_validity(future_data_table.copy(), input_name = 'future_data_table',
+                       data_type = 'temporal', column_identifier = column_identifier)
         
         for col in id_columns:
             if col not in future_data_table.columns :
@@ -479,7 +490,8 @@ def prepare_data(data, column_identifier):
             raise TypeError("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
         data = rename_columns(data.copy(), column_identifier)
 
-        check_validity(data.copy(), input_name = 'data', data_type = 'full')
+        check_validity(data.copy(), input_name = 'data', data_type = 'full',
+                       column_identifier = column_identifier)
 
         ##### split data to temporal and spatial data
 
@@ -526,7 +538,8 @@ def prepare_data(data, column_identifier):
             else:
                 raise valueError("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
             temporal_data = rename_columns(temporal_data.copy(), column_identifier)
-            check_validity(temporal_data.copy(), input_name = 'temporal_data', data_type = 'temporal')
+            check_validity(temporal_data.copy(), input_name = 'temporal_data', 
+                           data_type = 'temporal', column_identifier = column_identifier)
 
             if column_identifier is not None:
                 if 'temporal covariates' in column_identifier.keys():
@@ -557,7 +570,8 @@ def prepare_data(data, column_identifier):
                 raise ValueError("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
 
             spatial_data = rename_columns(spatial_data.copy(), column_identifier)
-            check_validity(spatial_data.copy(), input_name = 'spatial_data', data_type = 'spatial')
+            check_validity(spatial_data.copy(), input_name = 'spatial_data',
+                           data_type = 'spatial', column_identifier = column_identifier)
             spatial_data = spatial_data.drop_duplicates(subset = ['spatial id level 1']).copy()
 
             if column_identifier is not None:
@@ -585,7 +599,8 @@ def impute(data, column_identifier = None, verbose = 0):
     
     data = rename_columns(data.copy(), column_identifier)
         
-    check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
+    check_validity(data.copy(), input_name = 'data', data_type = 'temporal',
+                   column_identifier = column_identifier)
     
     if 'temporal id' in data.columns:
         temporal_identifier_column_name = 'temporal id'
@@ -678,12 +693,13 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
         data = pd.read_csv(data)
     data = rename_columns(data.copy(), column_identifier)
     
-    check_validity(data.copy(), input_name = 'data', data_type = data_type)
+    check_validity(data.copy(), input_name = 'data', data_type = data_type, column_identifier = column_identifier)
     if spatial_scale_table is not None:
         if type(spatial_scale_table) == str:
             spatial_scale_table = pd.read_csv(spatial_scale_table)
         spatial_scale_table = rename_columns(spatial_scale_table.copy(), column_identifier)
-        check_validity(spatial_scale_table.copy(), input_name = 'spatial_scale_table', data_type = 'spatial_scales')
+        check_validity(spatial_scale_table.copy(), input_name = 'spatial_scale_table',
+                       data_type = 'spatial_scales', column_identifier = column_identifier)
         # drop duplicate is needed ????
         data = add_spatial_ids(data.copy(),spatial_scale_table)
 
@@ -788,7 +804,7 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
     if type(data) == str:
         data = pd.read_csv(data)
     data = rename_columns(data.copy(), column_identifier)
-    check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
+    check_validity(data.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
     
     if type(temporal_scale_level) != int:
         raise TypeError("The temporal_scale_level must be of type int.\n")
@@ -985,7 +1001,7 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
         data = pd.read_csv(data)
     data = rename_columns(data.copy(), column_identifier)
     
-    check_validity(data.copy(), input_name = 'data', data_type = 'temporal')
+    check_validity(data.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
     
     if 'target' not in data.columns:
         raise ValueError("There is no column named 'target' in the input data, and the corresponding column is not specified in the column_identifier.\n")
@@ -1164,7 +1180,7 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             raise TypeError("The input data must be of type DataFrame, string, or a dict containing temporal and spatial DataFrames or addresses.\n")
         data = rename_columns(data.copy(), column_identifier)
         
-        check_validity(data.copy(), input_name = 'data', data_type = 'full')
+        check_validity(data.copy(), input_name = 'data', data_type = 'full', column_identifier = column_identifier)
 
     elif type(data) == dict:
         if 'temporal_data' in data.keys():
@@ -1180,7 +1196,8 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
             else:
                 raise ValueError("The value of the 'temporal id' key in the data dictionary must be a DataFrame or the address of temporal data.\n")
             temporal_data = rename_columns(temporal_data.copy(), column_identifier)
-            check_validity(temporal_data.copy(), input_name = 'temporal_data', data_type = 'temporal')
+            check_validity(temporal_data.copy(), input_name = 'temporal_data', 
+                           data_type = 'temporal', column_identifier = column_identifier)
             
         else:
             raise Exception("The data on temporal covariates and target variable must be passed to the function using data argument and as a DataFrame, Data address or value of 'temporal_data' key in the dictionary of data. But none is passed.\n")
@@ -1200,7 +1217,8 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
                 raise ValueError("The value of the 'spatial id' key in the data dictionary must be a DataFrame or the address of spatial data.\n")
             
             spatial_data = rename_columns(spatial_data.copy(), column_identifier)
-            check_validity(spatial_data.copy(), input_name = 'spatial_data', data_type = 'spatial')
+            check_validity(spatial_data.copy(), input_name = 'spatial_data',
+                           data_type = 'spatial', column_identifier = column_identifier)
             
             if len(list(set(temporal_data['spatial id level 1'].unique())-set(spatial_data['spatial id level 1'].unique())))>0:
                 print("\nWarning: Some of the spatial units in the temporal_data, are not recorded in the spatial_data. These spatial units will be ignored.\n")
@@ -1874,7 +1892,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
         raise TypeError("The input data must be of type DataFrame or string.")
     
     df = rename_columns(data, column_identifier)
-    check_validity(df.copy(), input_name = 'data', data_type = 'temporal')
+    check_validity(df.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
     
     if type(spatial_id) == list:
         if len(spatial_id)>3 :
@@ -2037,4 +2055,3 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
             except FileNotFoundError:
                 print("The address '{0}' is not valid.".format(saving_plot_path))
         plt.close()
-
