@@ -29,10 +29,21 @@ from sklearn.preprocessing import LabelEncoder
 from keras.wrappers.scikit_learn import KerasClassifier
 import os
 from numpy.random import seed
+from keras import backend as K
+import random
 seed(1)
 tf.random.set_seed(1)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+def reset_seeds():
+    np.random.seed(1)
+    random.seed(1)
+    if tf.__version__[0] == '2':
+        tf.random.set_seed(1)
+    else:
+        tf.set_random_seed(1)
+    print("RANDOM SEEDS RESET")
+    
 
 ####################################################### GBM: Gradient Boosting Regressor
 def GBM_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
@@ -127,6 +138,9 @@ def KNN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
 
 ####################################################### NN: Neural Network Regressor
 def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
+    K.clear_session()
+    tf.compat.v1.reset_default_graph()
+    reset_seeds()
     
     # default parameters
     parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None], 'output_activation':'exponential', 'loss':'mean_squared_error',
@@ -140,7 +154,7 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
                 parameters[key] = user_params[key]
 
 
-    NeuralNetworkObject = keras.Sequential()
+    NeuralNetworkObject = keras.models.Sequential()
     NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
     for layer,neurons in enumerate(parameters['headen_layers_neurons']):
         NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
@@ -259,6 +273,9 @@ def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
 
 def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
+    K.clear_session()
+    tf.compat.v1.reset_default_graph()
+    reset_seeds()
     
     # default parameters
     parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None],
@@ -288,7 +305,7 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
         output_neurons = 1
         y_to_fit = encoded_y_train.ravel()
     
-    NeuralNetworkObject = keras.Sequential()
+    NeuralNetworkObject = keras.models.Sequential()
     NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
     for layer,neurons in enumerate(parameters['headen_layers_neurons']):
         NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
