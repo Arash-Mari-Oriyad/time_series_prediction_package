@@ -100,7 +100,7 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         stage = 'training' if plot_type == 'test' else 'forecast'
         
         if test_point is not None:
-            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point)
+            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point+1)
         else:
             save_file_name = '{0}spatial id = {1} {2} stage.pdf'.format(save_address, spatial_id, stage)
         
