@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -42,7 +42,6 @@ def reset_seeds():
         tf.random.set_seed(1)
     else:
         tf.set_random_seed(1)
-    print("RANDOM SEEDS RESET")
     
 
 ####################################################### GBM: Gradient Boosting Regressor

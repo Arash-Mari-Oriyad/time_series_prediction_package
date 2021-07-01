@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 import pandas as pd
@@ -20,6 +20,7 @@ def predict_future(data: pd.DataFrame or str,
                    model_type: str,
                    labels: list or None,
                    model: str or callable,
+                   base_models: list,
                    model_parameters: dict or None,
                    scenario: str or None,
                    save_predictions: bool,
@@ -50,7 +51,8 @@ def predict_future(data: pd.DataFrame or str,
     if model_type not in configurations.MODEL_TYPES:
         sys.exit(f"Error: The input 'model_type' is not valid. Valid options are: {configurations.MODEL_TYPES}")
     # model input checking
-    if not ((isinstance(model, str) and model in configurations.PRE_DEFINED_MODELS) or callable(model)):
+    if not ((isinstance(model, str) and (model in configurations.PRE_DEFINED_MODELS or\
+           model in ['mixed_'+name for name in configurations.PRE_DEFINED_MODELS])) or callable(model)):
         sys.exit(f"Error: The input 'model' must be whether one of the pre-defined models"
                  f" ({configurations.PRE_DEFINED_MODELS}) or a callable object as a custom model.")
     # model_parameters input checking
@@ -132,6 +134,8 @@ def predict_future(data: pd.DataFrame or str,
                        model_type=model_type,
                        model=model,
                        model_parameters=model_parameters,
+                       labels=labels,
+                       base_models=base_models,
                        verbose=verbose)
 
     training_predictions = target_descale(scaled_data=list(scaled_training_predictions),

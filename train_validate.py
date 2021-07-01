@@ -26,6 +26,8 @@ from rank_covariates import rank_covariates
 from rank_features import rank_features
 import warnings
 import multiprocessing
+from keras import backend as K
+K.clear_session()
 warnings.filterwarnings("once")
 
 
@@ -145,7 +147,7 @@ def save_prediction_data_frame(models_name_list, target_real_values, fold_valida
     
 def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_testing_size = 0,
                    fold_total_number = 5, instance_random_partitioning = False,
-                   forecast_horizon = 1, models = ['knn'],  model_type = 'regression', splitting_type = 'training-validation',
+                   forecast_horizon = 1, models = ['knn'], mixed_models = None,  model_type = 'regression', splitting_type = 'training-validation',
                    performance_measures = None, performance_benchmark = None, performance_mode = 'normal', forced_covariates = [],
                    feature_scaler = None, target_scaler = None, labels = None, performance_report = True,
                    save_predictions = True, verbose = 0):
@@ -156,6 +158,8 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
     models_list = [] # list of models (str or callable)
     models_parameter_list = [] # list of models' parameters (dict or None)
     models_name_list = [] # list of models' names (str)
+    base_models_name_list = [] # list of base models' names (str)
+    mixed_models_name_list = [] # list of base models' names (str)
     
     ############################ reading and validating inputs
     
@@ -206,21 +210,29 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
             model_name = list(item.keys())[0]
             
             # if the dictionary contain only one of the supported models
-            if (len(item) == 1) and (model_name in supported_models_name):
+            if len(item) == 1:
                 
-                # if model is not duplicate 
-                if model_name not in models_list:
-                    models_list.append(model_name)
-                    models_name_list.append(model_name)
-                    # if the value of the model name is dictionary of models parameter list
-                    if type(item[model_name]) == dict:
-                        models_parameter_list.append(item[model_name])
+                if model_name in supported_models_name:
+                
+                    # if model is not duplicate 
+                    if model_name not in models_list:
+                        models_list.append(model_name)
+                        models_name_list.append(model_name)
+                        base_models_name_list.append(model_name)
+                        # if the value of the model name is dictionary of models parameter list
+                        if type(item[model_name]) == dict:
+                            models_parameter_list.append(item[model_name])
+                        else:
+                            models_parameter_list.append(None)
+                            print("\nWarning: The values in the dictionary items of models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.\n")
                     else:
-                        models_parameter_list.append(None)
-                        print("\nWarning: The values in the dictionary items of models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.\n")
+                        models.remove(item)
+                        print("\nWarning: Some of the predefined models are mentioned in the models' input multiple times. The duplicate cases will be ignored.\n")
                 else:
-                    print("\nWarning: Some of the predefined models are mentioned in the models' input multiple times. The duplicate cases will be ignored.\n")
+                    models.remove(item)
+                    print("\nWarning: The keys in the dictionary items of models list must be one of the supported model names. The incompatible cases will be ignored.\n")
             else:
+                models[models.index(item)] = {list(item.keys())[0]:list(item.values())[0]}
                 print("\nWarning: Each dictionary item in models list must contain only one item with a name of one of the supported models as a key and the parameters of that model as value. The incompatible cases will be ignored.\n")
         
         # if the item is only name of model whithout parameters
@@ -229,24 +241,95 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
                 if (item not in models_list):
                     models_list.append(item)
                     models_name_list.append(item)
+                    base_models_name_list.append(item)
                     models_parameter_list.append(None)
             else:
-                print("\nWarning: The string items in the models list must be one of the supported models names. The incompatible cases will be ignored.\n")
+                models.remove(item)
+                print("\nWarning: The string items in the models list must be one of the supported model names. The incompatible cases will be ignored.\n")
         
         # if the item is user defined function
         elif callable(item):
             if item.__name__ in supported_models_name:
                 raise Exception("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
+            if item.__name__ in models_name_list:
+                raise Exception("User-defined models can not have the same names.")
             models_list.append(item)
             models_name_list.append(item.__name__)
+            base_models_name_list.append(item.__name__)
             models_parameter_list.append(None)
             number_of_user_defined_models += 1
                         
         else:
+            models.remove(item)
             print("\nWarning: The items in the models list must be of type string, dict or callable. The incompatible cases will be ignored.\n")
     
     if len(models_list) < 1:
         raise ValueError("There is no item in the models list or the items are invalid.")
+
+    ############## mixed models input
+    
+    if type(mixed_models) != list:
+        raise TypeError("The mixed_models input must be of type list.")
+    
+    for item in mixed_models:
+        
+        # if the item is the dictionary of model name and its parameters
+        if type(item) == dict:       
+            model_name = list(item.keys())[0]
+            
+            # if the dictionary contain only one of the supported models
+            if len(item) == 1:
+                
+                if model_name in supported_models_name:
+                    # if model is not duplicate 
+                    if 'mixed_' + model_name not in mixed_models_name_list:
+                        models_list.append('mixed_'+model_name)
+                        models_name_list.append('mixed_' + model_name)
+                        mixed_models_name_list.append('mixed_' + model_name)
+                        # if the value of the model name is dictionary of models parameter list
+                        if type(item[model_name]) == dict:
+                            models_parameter_list.append(item[model_name])
+                        else:
+                            models_parameter_list.append(None)
+                            print("\nWarning: The values in the dictionary items of mixed_models list must be a dictionary of the model hyper parameter names and values. Other values will be ignored.\n")
+                    else:
+                        mixed_models.remove(item)
+                        print("\nWarning: Some of the predefined models are mentioned in the mixed_models list multiple times. The duplicate cases will be ignored.\n")
+                else:
+                    mixed_models.remove(item)
+                    print("\nWarning: The keys in the dictionary items of mixed_models list must be one of the supported model names. The incompatible cases will be ignored.\n")
+            else:
+                mixed_models[mixed_models.index(item)] = {list(item.keys())[0]:list(item.values())[0]}
+                print("\nWarning: Each dictionary item in mixed_models list must contain only one item with a name of one of the supported models as a key and the parameters of that model as value. The incompatible cases will be ignored.\n")
+        
+        # if the item is only name of model whithout parameters
+        elif type(item) == str:
+            if (item in supported_models_name):
+                if ('mixed_'+item not in mixed_models_name_list):
+                    models_list.append('mixed_'+item)
+                    models_name_list.append('mixed_'+item)
+                    mixed_models_name_list.append('mixed_'+item)
+                    models_parameter_list.append(None)
+            else:
+                mixed_models.remove(item)
+                print("\nWarning: The string items in the mixed_models list must be one of the supported model names. The incompatible cases will be ignored.\n")
+        
+        # if the item is user defined function
+        elif callable(item):
+            if item.__name__ in supported_models_name:
+                raise Exception("User-defined model names must be different from predefined models:['knn', 'glm', 'gbm', 'nn']")
+            if item.__name__ in models_name_list:
+                raise Exception("User-defined models can not have the same names.")
+            models_list.append(item)
+            models_name_list.append(item.__name__)
+            mixed_models_name_list.append(item.__name__)
+            models_parameter_list.append(None)
+            number_of_user_defined_models += 1
+                        
+        else:
+            mixed_models.remove(item)
+            print("\nWarning: The items in the mixed_models list must be of type string, dict or callable. The incompatible cases will be ignored.\n")
+        
         
     ############## performance measure input
     
@@ -498,7 +581,6 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
     training_errors = {measure: {model_name: {} for model_name in models_name_list} for measure in performance_measures}
     
     knn_alert_flag = 0
-    number_of_temporal_units = len(data_list[0]['temporal id'].unique())
     Number_of_cpu = multiprocessing.cpu_count()
     #################################################### main part
     
@@ -517,7 +599,9 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
         raw_train_data, _ , raw_testing_data , _ = split_data(data = data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = instance_testing_size,
                                                   instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
                                                   instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
-        
+        if history == 1:
+            number_of_temporal_units = len(raw_train_data['temporal id'].unique())
+            
         if feature_selection_type == 'feature':
             ordered_covariates_or_features.append(rank_features(data=raw_train_data.copy(),
                                                                     ranking_method=ranking_method,
@@ -563,10 +647,14 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
                                                   instance_validation_size = None, fold_total_number = None, fold_number = None, splitting_type = 'instance',
                                                   instance_random_partitioning = instance_random_partitioning, granularity = granularity, verbose = 0)
 
+        ####################### Running base models
         
         # initializing the pool for parallel run
         prediction_pool = Pool(processes = Number_of_cpu)
         pool_list = [] # list of all the different combination of the arguments of pool function
+        
+        if len(mixed_models_name_list)>0:
+            print('\nBase models are running.\n')
         
         for feature_set_number in range(len(feature_sets_indices[history-1])):
             
@@ -577,41 +665,43 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
             train_data = select_features(data = raw_train_data.copy(), ordered_covariates_or_features = names_to_select)
                 
             for model_number, model in enumerate(models_list):
-                    
+                  
                 model_parameters = models_parameter_list[model_number]
                 model_name = models_name_list[model_number]
+                
+                if model_name in base_models_name_list:
 
-                for fold_number in range(1, fold_total_number + 1):
-                    
-                    # get the current fold training and validation data
-                    training_data, validation_data, _ , _ = split_data(data = train_data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = None,
-                                                  instance_validation_size = instance_validation_size, fold_total_number = fold_total_number, fold_number = fold_number,
-                                                  splitting_type = split_data_splitting_type, instance_random_partitioning = instance_random_partitioning, 
-                                                  granularity = granularity, verbose = 0)
-                    
-                    if model_parameters is not None:
-                        if 'n_neighbors' in model_parameters.keys():
-                            if type(model_parameters['n_neighbors']) == int:
-                                if (model_parameters['n_neighbors']>len(training_data)) and (knn_alert_flag == 0):
-                                    print("\nWarning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
-                                    print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]\n")
-                                    knn_alert_flag = 1
-                    
-                    # saving the target real values of each fold for data with different history lengths to use in
-                    # calculation of performance and saving real and predicted target values in csv files
-                    needed_columns = ['spatial id', 'temporal id', 'Target', 'Normal target']
-                    
-                    # the target real values dataframe is copied for each combination of fold_number, history, and feature_set_number
-                    for feature_set_number in range(len(feature_sets_indices[history-1])):
-                        target_real_values['training'][(fold_number, history, feature_set_number)] = training_data[needed_columns]
-                        target_real_values['validation'][(fold_number, history, feature_set_number)] = validation_data[needed_columns]
-                    
-                    # scaling features and target based on feature_scaler and target_scaler
-                    training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, feature_scaler = feature_scaler, target_scaler = target_scaler)
-                    
-                    # add the current fold data, model name and model parameters to the list of pool function arguments
-                    pool_list.append(tuple((training_data, validation_data, model, model_type, model_parameters, 0)))
-                    
+                    for fold_number in range(1, fold_total_number + 1):
+
+                        # get the current fold training and validation data
+                        training_data, validation_data, _ , _ = split_data(data = train_data.copy(), forecast_horizon = forecast_horizon, instance_testing_size = None,
+                                                      instance_validation_size = instance_validation_size, fold_total_number = fold_total_number, fold_number = fold_number,
+                                                      splitting_type = split_data_splitting_type, instance_random_partitioning = instance_random_partitioning, 
+                                                      granularity = granularity, verbose = 0)
+
+                        if model_parameters is not None:
+                            if 'n_neighbors' in model_parameters.keys():
+                                if type(model_parameters['n_neighbors']) == int:
+                                    if (model_parameters['n_neighbors']>len(training_data)) and (knn_alert_flag == 0):
+                                        print("\nWarning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
+                                        print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]\n")
+                                        knn_alert_flag = 1
+
+                        # saving the target real values of each fold for data with different history lengths to use in
+                        # calculation of performance and saving real and predicted target values in csv files
+                        needed_columns = ['spatial id', 'temporal id', 'Target', 'Normal target']
+
+                        # the target real values dataframe is copied for each combination of fold_number, history, and feature_set_number
+                        for feature_set_number in range(len(feature_sets_indices[history-1])):
+                            target_real_values['training'][(fold_number, history, feature_set_number)] = training_data[needed_columns]
+                            target_real_values['validation'][(fold_number, history, feature_set_number)] = validation_data[needed_columns]
+
+                        # scaling features and target based on feature_scaler and target_scaler
+                        training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, feature_scaler = feature_scaler, target_scaler = target_scaler)
+
+                        # add the current fold data, model name and model parameters to the list of pool function arguments
+                        pool_list.append(tuple((training_data, validation_data, model, model_type, model_parameters, 0)))
+
                     
                     
         # running the models in parallel
@@ -619,9 +709,98 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
         prediction_pool.close()
         prediction_pool.join()
         
-        ####################### get outputs, calculate and save the performance
+        ####################### geting the outputs of base models
         
         pool_index = 0 # the index of pool results
+        
+        for feature_set_number in range(len(feature_sets_indices[history-1])):
+            
+            for base_model_name in base_models_name_list:
+                
+                for fold_number in range(1, fold_total_number + 1):
+                    
+                    # save the models prediction output for the current fold
+                    fold_training_predictions[base_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][0]
+                    fold_validation_predictions[base_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][1]
+                    number_of_parameters[base_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][2]
+                    
+                    pool_index = pool_index + 1
+                    
+
+        ####################### Running mixed models
+        
+        if len(mixed_models_name_list)>0:
+            
+            # initializing the pool for parallel run
+            prediction_pool = Pool(processes = Number_of_cpu)
+            pool_list = [] # list of all the different combination of the arguments of pool function
+            print('\nMixed models are running.\n')
+
+            for feature_set_number in range(len(feature_sets_indices[history-1])):
+                
+                for model_number, model in enumerate(models_list):
+
+                    model_parameters = models_parameter_list[model_number]
+                    model_name = models_name_list[model_number]
+                    
+                    if model_name in mixed_models_name_list:
+                        
+                        for fold_number in range(1, fold_total_number + 1):
+                            
+                            training_data = target_real_values['training'][(fold_number, history, feature_set_number)].copy()
+                            validation_data = target_real_values['validation'][(fold_number, history, feature_set_number)].copy()
+                            
+                            for base_model_name in base_models_name_list:
+                                
+                                base_train_predictions = fold_training_predictions[base_model_name][(fold_number, history, feature_set_number)]
+                                base_validation_predictions = fold_validation_predictions[base_model_name][(fold_number, history, feature_set_number)]
+                                
+                                if model_type == 'classification':
+                                    base_train_predictions = [labels[index] for index in np.argmax(base_train_predictions, axis=1)]
+                                    base_validation_predictions = [labels[index] for index in np.argmax(base_validation_predictions, axis=1)]
+                                training_data.loc[:,(base_model_name)] = base_train_predictions
+                                validation_data.loc[:,(base_model_name)] = base_validation_predictions
+                            
+
+                            if model_parameters is not None:
+                                if 'n_neighbors' in model_parameters.keys():
+                                    if type(model_parameters['n_neighbors']) == int:
+                                        if (model_parameters['n_neighbors']>len(training_data)) and (knn_alert_flag == 0):
+                                            print("\nWarning: The number of neighbors for KNN algorithm is not specified or is too large for input data shape.")
+                                            print("The number of neighbors will be set to the best number of neighbors obtained by grid search in the range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,20 ,40 ,60 ,80, 100, 120, 140, 160, 180, 200]\n")
+                                            knn_alert_flag = 1
+                            
+                            # scaling features and target based on feature_scaler and target_scaler
+                            training_data, validation_data = data_scaling(train_data = training_data, test_data = validation_data, feature_scaler = None, target_scaler = target_scaler)
+                            
+                            # add the current fold data, model name and model parameters to the list of pool function arguments
+                            pool_list.append(tuple((training_data, validation_data, model, model_type, model_parameters, 0)))
+
+
+            # running the models in parallel
+            parallel_output = prediction_pool.map(partial(parallel_run),tqdm(list(pool_list)))
+            prediction_pool.close()
+            prediction_pool.join()
+            
+            
+        ####################### geting the outputs of mixed models
+        
+        pool_index = 0 # the index of pool results
+        
+        for feature_set_number in range(len(feature_sets_indices[history-1])):
+            
+            for mixed_model_name in mixed_models_name_list:
+                
+                for fold_number in range(1, fold_total_number + 1):
+                    
+                    # save the models prediction output for the current fold
+                    fold_training_predictions[mixed_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][0]
+                    fold_validation_predictions[mixed_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][1]
+                    number_of_parameters[mixed_model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][2]
+                    
+                    pool_index = pool_index + 1
+        
+        ####################### calculate and save the performance
         
         for feature_set_number in range(len(feature_sets_indices[history-1])):
             
@@ -632,11 +811,6 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
                 fold_training_error = {fold_number : {measure: None for measure in supported_performance_measures} for fold_number in range(1, fold_total_number + 1)}
                 
                 for fold_number in range(1, fold_total_number + 1):
-                    
-                    # save the models prediction output for the current fold
-                    fold_training_predictions[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][0]
-                    fold_validation_predictions[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][1]
-                    number_of_parameters[model_name][(fold_number, history, feature_set_number)] = parallel_output[pool_index][2]
                     
                     # descale the predictions
                     fold_training_predictions[model_name][(fold_number, history, feature_set_number)] = target_descale(
@@ -668,8 +842,6 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
                                                                training_prediction = fold_training_predictions[model_name][(fold_number, history, feature_set_number)].copy(),
                                                                test_prediction = fold_validation_predictions[model_name][(fold_number, history, feature_set_number)].copy(),
                                                                performance_mode = performance_mode)
-                    
-                    pool_index = pool_index + 1
 
                     
                     # calculate and store the performance measure for the current fold

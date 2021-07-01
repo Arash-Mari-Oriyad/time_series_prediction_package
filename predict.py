@@ -1,4 +1,4 @@
-import os
+﻿import os
 import shutil
 import sys
 
@@ -10,6 +10,7 @@ from get_target_quantities import get_target_quantities
 from train_validate import train_validate
 from train_test import train_test
 from predict_future import predict_future
+from plot_predictions import plot_predictions
 
 
 def predict(data: list,
@@ -21,6 +22,7 @@ def predict(data: list,
             forced_covariates: list = [],
             model_type: str = 'regression',
             models: list = ['knn'],
+            mixed_models: list = [],
             instance_testing_size: int or float = 0.2,
             splitting_type: str = 'training-validation',
             instance_validation_size: int or float = 0.3,
@@ -33,6 +35,7 @@ def predict(data: list,
             validation_performance_report: bool = True,
             testing_performance_report: bool = True,
             save_predictions: bool = True,
+            plot: bool = True,
             verbose: int = 0):
     """
 
@@ -98,6 +101,7 @@ def predict(data: list,
     # model_type input checking
     if model_type not in configurations.MODEL_TYPES:
         sys.exit("model_type input is not valid.")
+    models_list = []
     # models input checking
     if not isinstance(models, list):
         sys.exit("models input format is not valid.")
@@ -105,16 +109,49 @@ def predict(data: list,
         if isinstance(model, str):
             if model not in configurations.PRE_DEFINED_MODELS:
                 sys.exit("models input is not valid.")
+            elif model not in models_list:
+                models_list.append(model)
+            else:models.remove(model)
         elif isinstance(model, dict):
             if len(list(model.keys())) == 1:
                 if list(model.keys())[0] not in configurations.PRE_DEFINED_MODELS:
                     sys.exit("models input is not valid.")
+                elif list(model.keys())[0] not in models_list:
+                    models_list.append(list(model.keys())[0])
+                else:models.remove(model)
             else:
                 sys.exit("models input is not valid.")
         elif callable(model):
-            pass
+            if model.__name__ not in models_list:
+                models_list.append(model.__name__)
+            else:models.remove(model)
         else:
             sys.exit("Models input is not valid.")
+    # mixed_models input checking
+    if not isinstance(mixed_models, list):
+        sys.exit("Mixed_models input format is not valid.")
+    for model in mixed_models:
+        if isinstance(model, str):
+            if model not in configurations.PRE_DEFINED_MODELS:
+                sys.exit("Mixed_models input is not valid.")
+            elif 'mixed_'+model not in models_list:
+                models_list.append('mixed_'+model)
+            else:mixed_models.remove(model)
+        elif isinstance(model, dict):
+            if len(list(model.keys())) == 1:
+                if list(model.keys())[0] not in configurations.PRE_DEFINED_MODELS:
+                    sys.exit("Mixed_models input is not valid.")
+                elif 'mixed_'+list(model.keys())[0] not in models_list:
+                    models_list.append('mixed_'+list(model.keys())[0])
+                else:mixed_models.remove(model)
+            else:
+                sys.exit("Mixed_models input is not valid.")
+        elif callable(model):
+            if model.__name__ not in models_list:
+                models_list.append(model.__name__)
+            else:mixed_models.remove(model)
+        else:
+            sys.exit("Mixed_models input is not valid.")
     # instance_testing_size input checking
     if not ((isinstance(instance_testing_size, float) and 0 < instance_testing_size < 1) or (
             isinstance(instance_testing_size, int) and instance_testing_size > 0)):
@@ -159,6 +196,12 @@ def predict(data: list,
     # save_predictions input checking
     if not isinstance(save_predictions, bool):
         sys.exit("save_predictions input is not valid.")
+    # plot input checking
+    if not isinstance(plot, bool):
+        sys.exit("plot input is not valid.")
+    elif (plot == True) and (save_predictions == False):
+        sys.exit("For plotting the predictions, both plot and save_predictions inputs must be set to TRUE.")
+        
     # verbose input checking
     if verbose not in configurations.VERBOSE_OPTIONS:
         sys.exit("verbose input is not valid.")
@@ -183,6 +226,9 @@ def predict(data: list,
     forced_covariates = [forced_covariate
                          for forced_covariate in forced_covariates
                          if forced_covariate is not None and forced_covariate != '']
+    
+    # get target quantities
+    target_mode, target_granularity, granularity, _ = get_target_quantities(data=data[0].copy())
 
     # classification checking
     labels = None
@@ -270,6 +316,7 @@ def predict(data: list,
                            model_type=model_type,
                            labels=labels,
                            models=models,
+                           mixed_models=mixed_models,
                            instance_testing_size=instance_testing_size,
                            splitting_type=splitting_type,
                            instance_validation_size=instance_validation_size,
@@ -280,6 +327,11 @@ def predict(data: list,
                            performance_report=validation_performance_report,
                            save_predictions=save_predictions,
                            verbose=verbose)
+        
+        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
+            base_models = models
+        else:
+            base_models = None
 
         # train_test
         print(100 * '-')
@@ -293,6 +345,7 @@ def predict(data: list,
                                                        model_type=model_type,
                                                        labels=labels,
                                                        model=best_model,
+                                                       base_models = base_models,
                                                        model_parameters=best_model_parameters,
                                                        instance_testing_size=instance_testing_size,
                                                        performance_measures=performance_measures,
@@ -311,6 +364,7 @@ def predict(data: list,
                            model_type=model_type,
                            labels=labels,
                            models=models,
+                           mixed_models=mixed_models,
                            instance_testing_size=0,
                            splitting_type=splitting_type,
                            instance_validation_size=instance_validation_size,
@@ -318,9 +372,14 @@ def predict(data: list,
                            fold_total_number=fold_total_number,
                            performance_benchmark=performance_benchmark,
                            performance_measures=performance_measures,
-                           performance_report=False,
-                           save_predictions=False,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
                            verbose=0)
+        
+        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
+            base_models = models
+        else:
+            base_models = None
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
@@ -337,6 +396,7 @@ def predict(data: list,
                                        model_type=model_type,
                                        labels=labels,
                                        model=best_model,
+                                       base_models = base_models,
                                        model_parameters=best_model_parameters,
                                        scenario=scenario,
                                        save_predictions=save_predictions,
@@ -367,6 +427,7 @@ def predict(data: list,
                                model_type=model_type,
                                labels=labels,
                                models=models,
+                               mixed_models=mixed_models,
                                instance_testing_size=1,
                                splitting_type=splitting_type,
                                instance_validation_size=instance_validation_size,
@@ -377,6 +438,11 @@ def predict(data: list,
                                performance_report=validation_performance_report,
                                save_predictions=save_predictions,
                                verbose=verbose)
+            
+            if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
+                base_models = models
+            else:
+                base_models = None
 
             # train_test
             print(100 * '-')
@@ -395,6 +461,7 @@ def predict(data: list,
                                                            model_type=model_type,
                                                            labels=labels,
                                                            model=best_model,
+                                                           base_models = base_models,
                                                            model_parameters=best_model_parameters,
                                                            instance_testing_size=1,
                                                            performance_measures=performance_measures,
@@ -415,6 +482,7 @@ def predict(data: list,
                            model_type=model_type,
                            labels=labels,
                            models=models,
+                           mixed_models=mixed_models,
                            instance_testing_size=0,
                            splitting_type=splitting_type,
                            instance_validation_size=instance_validation_size,
@@ -422,9 +490,15 @@ def predict(data: list,
                            fold_total_number=fold_total_number,
                            performance_benchmark=performance_benchmark,
                            performance_measures=performance_measures,
-                           performance_report=False,
-                           save_predictions=False,
+                           performance_report=validation_performance_report,
+                           save_predictions=save_predictions,
                            verbose=0)
+        
+        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
+            base_models = models
+        else:
+            base_models = None
+            
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
@@ -447,10 +521,16 @@ def predict(data: list,
                                            model_type=model_type,
                                            labels=labels,
                                            model=best_model,
+                                           base_models = base_models,
                                            model_parameters=best_model_parameters,
                                            scenario=scenario,
                                            save_predictions=save_predictions,
                                            verbose=verbose)
+    if plot == True:
+        plot_predictions(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
+                         plot_type = 'test', granularity = granularity, spatial_ids = None)
+        plot_predictions(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
+                         plot_type = 'future', granularity = granularity, spatial_ids = None)
 
     return None
 
