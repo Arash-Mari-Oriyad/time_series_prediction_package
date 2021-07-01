@@ -22,8 +22,11 @@ def select_features(data, ordered_covariates_or_features):
 
 	elif type_flag == 1:	# ordered_covariates
 		for covariate_name in ordered_covariates_or_features:
-			# makes a dataframe (tmp_df) that contains columns containing substring <covariate_name>
-			tmp_df = data.filter(regex=covariate_name)
+			# making a dataframe (tmp_df) containing the desirable columns
+			if not(covariate_name in check_list):
+				tmp_df = data[[covariate_name]]
+			else:
+				tmp_df = data.filter(regex=covariate_name)
 			output_data = pd.concat([output_data, tmp_df], axis=1)	# concat two dataframes
 	
 	output_data = pd.concat([data[['spatial id', 'temporal id', 'Target', 'Normal target']], output_data], axis=1)
