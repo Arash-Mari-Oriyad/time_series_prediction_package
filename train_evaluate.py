@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 import numpy as np
 import sys
 import datetime
@@ -238,12 +238,16 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
                                                                                   supported_models_name, base_model_parameter_list[base_model_number],\
                                                                                  labels, verbose)
             if model_type == 'classification':
-                print(train_predictions)
-                train_predictions = [labels[index] for index in np.argmax(train_predictions, axis=1)]
-                validation_predictions = [labels[index] for index in np.argmax(validation_predictions, axis=1)]
+#                 train_predictions = [labels[index] for index in np.argmax(train_predictions, axis=1)]
+#                 validation_predictions = [labels[index] for index in np.argmax(validation_predictions, axis=1)]
 
-            mixed_X_training[base_model_name] = list(train_predictions)
-            mixed_X_validation[base_model_name] = list(validation_predictions)
+                total_class_number = 1 if train_predictions.shape[1] == 2 else train_predictions.shape[1]
+                for class_num in range(total_class_number):
+                    mixed_X_training[base_model_name+str(class_num)] = list(train_predictions[:,class_num])
+                    mixed_X_validation[base_model_name+str(class_num)] = list(validation_predictions[:,class_num])
+            else:
+                mixed_X_training[base_model_name] = list(train_predictions)
+                mixed_X_validation[base_model_name] = list(validation_predictions)
 
         train_predictions, validation_predictions, trained_model = run_model(mixed_X_training, mixed_X_validation, Y_training, model, model_type,\
                                                                              supported_models_name, model_parameters, labels, verbose)
@@ -263,6 +267,7 @@ def inner_train_evaluate(training_data, validation_data, model, model_type, mode
                                                                               labels = labels,
                                                                               base_models = base_models,
                                                                               verbose = verbose)
+    
     if model == 'gbm' or model == 'mixed_gbm':
         # get the number of trees
         number_of_parameters = trained_model.n_estimators_
