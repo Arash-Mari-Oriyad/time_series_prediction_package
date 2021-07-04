@@ -100,7 +100,7 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         stage = 'training' if plot_type == 'test' else 'forecast'
         
         if test_point is not None:
-            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point+1)
+            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point)
         else:
             save_file_name = '{0}spatial id = {1} {2} stage.pdf'.format(save_address, spatial_id, stage)
         
@@ -154,7 +154,7 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         except FileNotFoundError:
                 print("The address '{0}' is not valid.".format(save_address))
                 
-def plot_predictions(data, test_type = 'whole-as-one', forecast_horizon = 1, plot_type = 'test', granularity = 1,
+def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot_type = 'test', granularity = 1,
                         spatial_ids = None):
     
     validation_dir = './prediction/validation process/'
