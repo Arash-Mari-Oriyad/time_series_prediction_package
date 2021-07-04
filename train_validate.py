@@ -755,11 +755,20 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
                                 base_train_predictions = fold_training_predictions[base_model_name][(fold_number, history, feature_set_number)]
                                 base_validation_predictions = fold_validation_predictions[base_model_name][(fold_number, history, feature_set_number)]
                                 
+#                                 if model_type == 'classification':
+#                                     base_train_predictions = [labels[index] for index in np.argmax(base_train_predictions, axis=1)]
+#                                     base_validation_predictions = [labels[index] for index in np.argmax(base_validation_predictions, axis=1)]
+#                                 training_data.loc[:,(base_model_name)] = base_train_predictions
+#                                 validation_data.loc[:,(base_model_name)] = base_validation_predictions
+                                
                                 if model_type == 'classification':
-                                    base_train_predictions = [labels[index] for index in np.argmax(base_train_predictions, axis=1)]
-                                    base_validation_predictions = [labels[index] for index in np.argmax(base_validation_predictions, axis=1)]
-                                training_data.loc[:,(base_model_name)] = base_train_predictions
-                                validation_data.loc[:,(base_model_name)] = base_validation_predictions
+                                    total_class_number = 1 if base_train_predictions.shape[1] == 2 else base_train_predictions.shape[1]
+                                    for class_num in range(total_class_number):
+                                        training_data.loc[:,(base_model_name+str(class_num))] = list(base_train_predictions[:,class_num])
+                                        validation_data.loc[:,(base_model_name+str(class_num))] = list(base_validation_predictions[:,class_num])
+                                else:
+                                    training_data.loc[:,(base_model_name)] = base_train_predictions
+                                    validation_data.loc[:,(base_model_name)] = base_validation_predictions
                             
 
                             if model_parameters is not None:
