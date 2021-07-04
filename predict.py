@@ -1,4 +1,4 @@
-﻿import os
+import os
 import shutil
 import sys
 
@@ -10,7 +10,7 @@ from get_target_quantities import get_target_quantities
 from train_validate import train_validate
 from train_test import train_test
 from predict_future import predict_future
-from plot_predictions import plot_predictions
+from plot_prediction import plot_prediction
 
 
 def predict(data: list,
@@ -35,7 +35,7 @@ def predict(data: list,
             validation_performance_report: bool = True,
             testing_performance_report: bool = True,
             save_predictions: bool = True,
-            plot: bool = True,
+            plot_predictions: bool = False,
             verbose: int = 0):
     """
 
@@ -196,11 +196,13 @@ def predict(data: list,
     # save_predictions input checking
     if not isinstance(save_predictions, bool):
         sys.exit("save_predictions input is not valid.")
-    # plot input checking
-    if not isinstance(plot, bool):
-        sys.exit("plot input is not valid.")
-    elif (plot == True) and (save_predictions == False):
-        sys.exit("For plotting the predictions, both plot and save_predictions inputs must be set to TRUE.")
+    # plot_predictions input checking
+    if not isinstance(plot_predictions, bool):
+        sys.exit("plot_predictions input is not valid.")
+    elif (plot_predictions == True) and (save_predictions == False):
+        sys.exit("For plotting the predictions, both plot_predictions and save_predictions inputs must be set to TRUE.")
+    elif (plot_predictions == True) and (model_type == 'classification'):
+        sys.exit("The plot_predictions input can be set to True only for regression model_type.")
         
     # verbose input checking
     if verbose not in configurations.VERBOSE_OPTIONS:
@@ -526,10 +528,10 @@ def predict(data: list,
                                            scenario=scenario,
                                            save_predictions=save_predictions,
                                            verbose=verbose)
-    if plot == True:
-        plot_predictions(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
+    if plot_predictions == True:
+        plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
                          plot_type = 'test', granularity = granularity, spatial_ids = None)
-        plot_predictions(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
+        plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
                          plot_type = 'future', granularity = granularity, spatial_ids = None)
 
     return None
