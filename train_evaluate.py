@@ -229,8 +229,8 @@ def train_evaluate(training_data, validation_data, model, model_type, model_para
                                                                                 supported_models_name,model_parameters, labels, verbose)
     # if model is mixed
     else:
-        mixed_X_training = pd.DataFrame(columns=base_model_name_list)
-        mixed_X_validation = pd.DataFrame(columns=base_model_name_list)
+        mixed_X_training = pd.DataFrame()
+        mixed_X_validation = pd.DataFrame()
 
         for base_model_number, base_model_name in enumerate(base_model_name_list):
             train_predictions, validation_predictions, trained_model = run_model(X_training.copy(), X_validation.copy(), Y_training.copy(),\
