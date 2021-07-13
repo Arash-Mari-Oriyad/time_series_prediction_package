@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 
 import pandas as pd
@@ -169,7 +169,9 @@ def predict_future(data: pd.DataFrame or str,
         converted_normal_testing_predictions = list(zip(*normal_testing_predictions))
         for index, label in enumerate(labels):
             data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
-
+            
+    data_to_save = data_to_save.rename(columns = {'temporal id':'predictive time point'})
+    
     save_predictions_address = \
         f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
 

@@ -13,8 +13,8 @@ import os
 
 def create_time_stamp(data, time_format, required_suffix):
     
-    data.loc[:,('temporal id')] = data['temporal id'].astype(str) + required_suffix
-    data.loc[:,('temporal id')] = data['temporal id'].apply(lambda x:datetime.datetime.strptime(x,time_format))
+    data.loc[:,('predictive time point')] = data['predictive time point'].astype(str) + required_suffix
+    data.loc[:,('predictive time point')] = data['predictive time point'].apply(lambda x:datetime.datetime.strptime(x,time_format))
     return data
 
 def get_target_temporal_ids(temporal_data, forecast_horizon, granularity):
@@ -24,8 +24,8 @@ def get_target_temporal_ids(temporal_data, forecast_horizon, granularity):
     scale_format = {'sec':'%Y/%m/%d %H:%M:%S', 'min':'%Y/%m/%d %H:%M', 'hour':'%Y/%m/%d %H', 'day':'%Y/%m/%d', 'week':'%Y/%m/%d', 'month':'%Y/%m', 'year':'%Y'}
     scale_delta = {'sec':0, 'min':0, 'hour':0, 'day':0, 'week':0, 'month':0, 'year':0}
     
-    temporal_data = temporal_data.sort_values(by = ['spatial id','temporal id']).copy()
-    temporal_id_instance = str(temporal_data['temporal id'].iloc[0])
+    temporal_data = temporal_data.sort_values(by = ['spatial id','predictive time point']).copy()
+    temporal_id_instance = str(temporal_data['predictive time point'].iloc[0])
     
     if len(temporal_id_instance) not in list_of_supported_formats_string_length:
         return temporal_data, None
@@ -46,8 +46,8 @@ def get_target_temporal_ids(temporal_data, forecast_horizon, granularity):
 
             temporal_data = create_time_stamp(temporal_data.copy(), '%Y/%m/%d', '')
 
-            first_temporal_id_instance = temporal_data['temporal id'].iloc[0]
-            second_temporal_id_instance = temporal_data['temporal id'].iloc[1]
+            first_temporal_id_instance = temporal_data['predictive time point'].iloc[0]
+            second_temporal_id_instance = temporal_data['predictive time point'].iloc[1]
 
             delta = second_temporal_id_instance - first_temporal_id_instance
             if delta.days == 1:
@@ -76,7 +76,7 @@ def get_target_temporal_ids(temporal_data, forecast_horizon, granularity):
     scale_delta[scale] = granularity*(forecast_horizon)
     timestamp_delta = relativedelta(years = scale_delta['year'], months = scale_delta['month'], weeks = scale_delta['week'], days = scale_delta['day'], hours = scale_delta['hour'], minutes = scale_delta['min'], seconds = scale_delta['sec'])
 
-    temporal_data['temporal id'] = temporal_data['temporal id'].apply(lambda x: datetime.datetime.strftime((x + timestamp_delta),scale_format[scale]))
+    temporal_data['predictive time point'] = temporal_data['predictive time point'].apply(lambda x: datetime.datetime.strftime((x + timestamp_delta),scale_format[scale]))
 
     return temporal_data, scale
 
@@ -84,7 +84,7 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
     
     mpl.style.use('default')
     df, scale = get_target_temporal_ids(df, forecast_horizon, granularity)
-    df = df.sort_values(by = ['spatial id','temporal id'])
+    df = df.sort_values(by = ['spatial id','predictive time point'])
     
     if scale is not None:
         x_axis_label = 'Target time point'
@@ -94,13 +94,13 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
     if spatial_ids is None:
         spatial_ids = list(random.sample(list(df['spatial id']),1))
         
-    temporal_ids = list(df['temporal id'].unique())
+    temporal_ids = list(df['predictive time point'].unique())
     
     for spatial_id in spatial_ids:
         stage = 'training' if plot_type == 'test' else 'forecast'
         
         if test_point is not None:
-            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point)
+            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point+1)
         else:
             save_file_name = '{0}spatial id = {1} {2} stage.pdf'.format(save_address, spatial_id, stage)
         
@@ -110,20 +110,20 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         
         # add the curve of real values of the target variable
         temp_df = df[df['spatial id'] == spatial_id]
-        plt.plot(list(temp_df['temporal id']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0)
+        plt.plot(list(temp_df['predictive time point']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0)
         
         # add the curve of predicted values of the target variable in the training, validation and testing set
         if plot_type != 'future':
             temp_train_df = temp_df[temp_df['sort'] == 'train']
-            plt.plot(list(temp_train_df['temporal id']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            plt.plot(list(temp_train_df['predictive time point']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0)
             temp_val_df = temp_df[temp_df['sort'] == 'validation']
-            plt.plot(list(temp_val_df['temporal id']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            plt.plot(list(temp_val_df['predictive time point']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0)
             temp_test_df = temp_df[temp_df['sort'] == 'test']
-            plt.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            plt.plot(list(temp_test_df['predictive time point']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0)
 
         if plot_type == 'future':
             temp_test_df = temp_df[temp_df['sort'] == 'test']
-            plt.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            plt.plot(list(temp_test_df['predictive time point']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0)
         
         plt.ylabel('Target')
         plt.xlabel(x_axis_label,labelpad = 20)
@@ -157,11 +157,13 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
 def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot_type = 'test', granularity = 1,
                         spatial_ids = None):
     
+    
     validation_dir = './prediction/validation process/'
     testing_dir = './prediction/test process/'
     future_dir = './prediction/future prediction/'
-    needed_columns = ['temporal id', 'spatial id','real','prediction','sort']
-
+    needed_columns = ['predictive time point', 'spatial id','real','prediction','sort']
+    data = data.rename(columns = {'temporal id':'predictive time point'})
+    
     path = validation_dir
     files = [f for f in listdir(path) if isfile(join(path, f))]
     prefix = 'validation prediction forecast horizon = {0}, T ='.format(forecast_horizon)
@@ -193,7 +195,7 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
         gap_df = data.rename(columns = {'Normal target':'real'})
         gap_df = gap_df.assign(prediction = np.NaN)
         gap_df = gap_df.assign(sort = 'gap')
-        gap_df = gap_df[(gap_df['temporal id'] < test_df['temporal id'].min()) & (gap_df['temporal id'] > train_df.append(validation_df)['temporal id'].max())]
+        gap_df = gap_df[(gap_df['predictive time point'] < test_df['predictive time point'].min()) & (gap_df['predictive time point'] > train_df.append(validation_df)['predictive time point'].max())]
 
         all_df = train_df[needed_columns].append(validation_df[needed_columns]).append(gap_df[needed_columns]).append(test_df[needed_columns])
         create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = None, 
@@ -203,10 +205,10 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
         
         test_point_number = len(file_temporal_units)-1
         all_test_points_df = pd.read_csv(address + ' prediction forecast horizon = {0}.csv'.format(forecast_horizon))
-        test_temporal_units = all_test_points_df['temporal id'].unique()
+        test_temporal_units = all_test_points_df['predictive time point'].unique()
         test_temporal_units.sort()
         for test_point in range(test_point_number):
-            test_df = all_test_points_df[all_test_points_df['temporal id'] == test_temporal_units[test_point]]
+            test_df = all_test_points_df[all_test_points_df['predictive time point'] == test_temporal_units[test_point]]
             selected_model = list(test_df['model name'].unique())[0]
             test_df = test_df.assign(sort='test')
             if plot_type == 'test':
@@ -223,7 +225,7 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
             gap_df = data.rename(columns = {'Normal target':'real'})
             gap_df = gap_df.assign(prediction = np.NaN)
             gap_df = gap_df.assign(sort = 'gap')
-            gap_df = gap_df[(gap_df['temporal id'] < test_df['temporal id'].min()) & (gap_df['temporal id'] > train_df.append(validation_df)['temporal id'].max())]
+            gap_df = gap_df[(gap_df['predictive time point'] < test_df['predictive time point'].min()) & (gap_df['predictive time point'] > train_df.append(validation_df)['predictive time point'].max())]
 
 
             all_df = train_df[needed_columns].append(validation_df[needed_columns]).append(gap_df[needed_columns]).append(test_df[needed_columns])

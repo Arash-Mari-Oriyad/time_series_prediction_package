@@ -38,7 +38,6 @@ def predict(data: list,
             plot_predictions: bool = False,
             verbose: int = 0):
     """
-
     Args:
         data:
         forecast_horizon:
@@ -62,9 +61,7 @@ def predict(data: list,
         testing_performance_report:
         save_predictions:
         verbose:
-
     Returns:
-
     """
     # input checking
     # data
@@ -228,9 +225,6 @@ def predict(data: list,
     forced_covariates = [forced_covariate
                          for forced_covariate in forced_covariates
                          if forced_covariate is not None and forced_covariate != '']
-    
-    # get target quantities
-    target_mode, target_granularity, granularity, _ = get_target_quantities(data=data[0].copy())
 
     # classification checking
     labels = None
@@ -250,17 +244,6 @@ def predict(data: list,
         labels = [label for label in labels if not (label is None or str(label) == 'nan')]
         if len(labels) < 2:
             sys.exit("Error: The labels length must be at least two.")
-        for d in data:
-            target_mode, target_granularity, granularity, _ = get_target_quantities(data=d.copy())
-            if not target_mode == 'normal':
-                sys.exit(
-                    "Error: The parameter 'target_mode' must be 'normal' according to 'model_type=classification'.")
-            if not target_granularity == 1:
-                sys.exit(
-                    "Error: The parameter 'target_granularity' must be 1 according to 'model_type=classification'.")
-            if not granularity == 1:
-                sys.exit(
-                    "Error: The parameter 'granularity' must be 1 according to 'model_type=classification'.")
 
     # one_by_one checking
     if test_type == 'one-by-one':
@@ -282,6 +265,21 @@ def predict(data: list,
                 sys.exit("Error: The input 'performance_benchmark' is not valid according to 'test_type=one-by-one'.")
             if 'AUPR' in performance_measures:
                 sys.exit("Error: The input 'performance_benchmark' is not valid according to 'test_type=one-by-one'.")
+                
+    # get target quantities
+    granularity = [1]*len(data)
+    for index, d in enumerate(data):
+        target_mode, target_granularity, granularity[index], _ = get_target_quantities(data=d.copy())
+        if model_type == 'classification':
+            if not target_mode == 'normal':
+                sys.exit(
+                    "Error: The parameter 'target_mode' must be 'normal' according to 'model_type=classification'.")
+            if not target_granularity == 1:
+                sys.exit(
+                    "Error: The parameter 'target_mode' must be 'normal' according to 'model_type=classification'.")
+            if not granularity[index] == 1:
+                sys.exit(
+                    "Error: The temporal scale of input data must not be transformed according to 'model_type=classification'.")
 
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
@@ -305,10 +303,11 @@ def predict(data: list,
     # main process
     if test_type == 'whole-as-one':
         print('Whole As One')
+        data_temporal_ids = [d['temporal id'].unique() for d in data]
         # train_validate
         print(100 * '-')
         print('Train Validate Process')
-        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
             train_validate(data=[d.copy() for d in data],
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
@@ -329,11 +328,6 @@ def predict(data: list,
                            performance_report=validation_performance_report,
                            save_predictions=save_predictions,
                            verbose=verbose)
-        
-        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
-            base_models = models
-        else:
-            base_models = None
 
         # train_test
         print(100 * '-')
@@ -356,8 +350,10 @@ def predict(data: list,
                                                        save_predictions=save_predictions,
                                                        verbose=verbose)
         # predict_future
-        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-            train_validate(data=[d.copy() for d in data],
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
+            train_validate(data=[d[d['temporal id'].isin((
+                                data_temporal_ids[index][:] if (forecast_horizon*granularity[index])-1 == 0 else data_temporal_ids[index][:-((forecast_horizon*granularity[index])-1)]))].copy()
+                                for index, d in enumerate(data)],
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
@@ -378,14 +374,11 @@ def predict(data: list,
                            save_predictions=save_predictions,
                            verbose=0)
         
-        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
-            base_models = models
-        else:
-            base_models = None
+        
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
-        temp = forecast_horizon - 1
+        temp = forecast_horizon*granularity[best_history_length - 1] - 1
         trained_model = predict_future(data=best_data[best_data['temporal id'].isin((best_data_temporal_ids
                                                                                      if temp == 0
                                                                                      else best_data_temporal_ids[:-temp]
@@ -416,7 +409,7 @@ def predict(data: list,
             # train_validate
             print(100 * '-')
             print('Train Validate Process')
-            best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
+            best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
                 train_validate(data=
                                [d[d['temporal id'].isin((
                                    data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i]))].copy()
@@ -441,10 +434,6 @@ def predict(data: list,
                                save_predictions=save_predictions,
                                verbose=verbose)
             
-            if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
-                base_models = models
-            else:
-                base_models = None
 
             # train_test
             print(100 * '-')
@@ -474,8 +463,10 @@ def predict(data: list,
         # predict_future
         print(100 * '-')
         print('Train Validate Process')
-        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, _ = \
-            train_validate(data=[d.copy() for d in data],
+        best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
+            train_validate(data=[d[d['temporal id'].isin((
+                                   data_temporal_ids[index][:] if (forecast_horizon*granularity[index])-1 == 0 else data_temporal_ids[index][:-((forecast_horizon*granularity[index])-1)]))].copy()
+                                for index, d in enumerate(data)],
                            forecast_horizon=forecast_horizon,
                            feature_scaler=feature_scaler,
                            target_scaler=target_scaler,
@@ -496,19 +487,15 @@ def predict(data: list,
                            save_predictions=save_predictions,
                            verbose=0)
         
-        if ((type(best_model)==callable) and (best_model in mixed_models)) or ((isinstance(best_model,str)) and ('mixed_'+best_model in mixed_models)):
-            base_models = models
-        else:
-            base_models = None
             
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
         best_data_temporal_ids = best_data['temporal id'].unique()
         best_future_data_temporal_ids = best_future_data['temporal id'].unique()
-        for i in range(forecast_horizon):
+        for i in range(forecast_horizon*granularity[best_history_length - 1]):
             print(150 * '*')
             print('i =', i + 1)
-            temp = forecast_horizon - i - 1
+            temp = forecast_horizon*granularity[best_history_length - 1] - i - 1
             print(100 * '-')
             print('Predict Future Process')
             trained_model = predict_future(data=best_data[best_data['temporal id'].isin(
@@ -530,9 +517,9 @@ def predict(data: list,
                                            verbose=verbose)
     if plot_predictions == True:
         plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
-                         plot_type = 'test', granularity = granularity, spatial_ids = None)
+                         plot_type = 'test', granularity = granularity[0], spatial_ids = None)
         plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
-                         plot_type = 'future', granularity = granularity, spatial_ids = None)
+                         plot_type = 'future', granularity = granularity[0], spatial_ids = None)
 
     return None
 

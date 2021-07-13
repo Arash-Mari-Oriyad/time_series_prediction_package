@@ -35,6 +35,7 @@ seed(1)
 tf.random.set_seed(1)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# reset seed for reprodutability of neural network
 def reset_seeds():
     np.random.seed(1)
     random.seed(1)
@@ -42,6 +43,47 @@ def reset_seeds():
         tf.random.set_seed(1)
     else:
         tf.set_random_seed(1)
+        
+# producing list of parameter values combinations from parameter grid specified by user
+def get_nn_structure(user_params):
+    
+    if 'hidden_layers_structure' in user_params:
+        error_msg = 'The value of hidden_layers_structure in NN model parameters must be a list of tuples including number of neurons and activation function of each layer.'
+        if not isinstance(user_params['hidden_layers_structure'],list):
+            raise ValueError(error_msg)
+        elif all([isinstance(item, tuple) for item in user_params['hidden_layers_structure']]):
+            if not all([len(item) == 2 for item in user_params['hidden_layers_structure']]):
+                raise ValueError(error_msg)
+        else:raise ValueError(error_msg)
+        # remove duplicate information on network structure
+        user_params = {key:user_params[key] for key in user_params.keys() if key not in ['hidden_layers_neurons', 'hidden_layers_activations', 'hidden_layers_number']}
+
+    else:
+        # extract hidden_layers_structure from hidden_layers_neurons, hidden_layers_activations and hidden_layers_number
+        if 'hidden_layers_neurons' not in user_params:
+            user_params['hidden_layers_neurons'] = None
+        elif type(user_params['hidden_layers_neurons']) != int:
+            raise TypeError('The value of hidden_layers_neurons in NN model parameters must be of type int.')
+
+        if 'hidden_layers_activations' not in user_params:
+            user_params['hidden_layers_activations'] = None
+        elif (user_params['hidden_layers_activations'] is not None) and (type(user_params['hidden_layers_activations'])!=str):
+            raise TypeError('The value of hidden_layers_activations in NN model parameters must be of type string or None.')
+            
+        if 'hidden_layers_number' not in user_params:
+            user_params['hidden_layers_number'] = 1
+        elif type(user_params['hidden_layers_number']) != int:
+            raise TypeError('The value of hidden_layers_number in NN model parameters must be of type int.')
+
+        user_params['hidden_layers_structure'] = []
+        for layer in range(1,user_params['hidden_layers_number']+1):
+            user_params['hidden_layers_structure'].append(tuple((user_params['hidden_layers_neurons'],user_params['hidden_layers_activations'])))
+
+        # remove duplicate information on network structure
+        user_params = {key:user_params[key] for key in user_params.keys() if key 
+                       not in ['hidden_layers_neurons', 'hidden_layers_activations', 'hidden_layers_number']}
+    
+    return user_params
     
 
 ####################################################### GBM: Gradient Boosting Regressor
@@ -141,8 +183,11 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
     tf.compat.v1.reset_default_graph()
     reset_seeds()
     
+    user_params = get_nn_structure(user_params)
+    
     # default parameters
-    parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None], 'output_activation':'exponential', 'loss':'mean_squared_error',
+    parameters = {'hidden_layers_structure':[((X_train.shape[1]) // 2 + 1, None)], 'output_activation':'exponential', 
+                  'loss':'mean_squared_error',
                   'optimizer':'RMSprop', 'metrics':['mean_squared_error'],
                   'early_stopping_monitor':'val_loss', 'early_stopping_patience':30, 'batch_size':128,
                   'validation_split':0.2,'epochs':100}
@@ -152,11 +197,11 @@ def NN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
             if key in user_params.keys():
                 parameters[key] = user_params[key]
 
-
     NeuralNetworkObject = keras.models.Sequential()
     NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
-    for layer,neurons in enumerate(parameters['headen_layers_neurons']):
-        NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
+    for neurons, activation in parameters['hidden_layers_structure']:
+        neurons = (X_train.shape[1]) // 2 + 1 if neurons is None else neurons
+        NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=activation))
     NeuralNetworkObject.add(tf.keras.layers.Dense(1, activation=parameters['output_activation']))
     
     
@@ -276,8 +321,10 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     tf.compat.v1.reset_default_graph()
     reset_seeds()
     
+    user_params = get_nn_structure(user_params)
+    
     # default parameters
-    parameters = {'headen_layers_neurons':[(X_train.shape[1]) // 2 + 1], 'headen_layers_activations':[None],
+    parameters = {'hidden_layers_structure':[((X_train.shape[1]) // 2 + 1, None)],
                   'output_activation':'softmax', 'loss':'categorical_crossentropy',
                   'optimizer':'adam', 'metrics':['accuracy'],
                   'early_stopping_monitor':'val_loss', 'early_stopping_patience':30, 'batch_size':128,
@@ -306,8 +353,9 @@ def NN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     
     NeuralNetworkObject = keras.models.Sequential()
     NeuralNetworkObject.add(tf.keras.layers.InputLayer(input_shape=(X_train.shape[1],)))
-    for layer,neurons in enumerate(parameters['headen_layers_neurons']):
-        NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=parameters['headen_layers_activations'][layer]))
+    for neurons, activation in parameters['hidden_layers_structure']:
+        neurons = (X_train.shape[1]) // 2 + 1 if neurons is None else neurons
+        NeuralNetworkObject.add(tf.keras.layers.Dense(neurons, activation=activation))
     NeuralNetworkObject.add(tf.keras.layers.Dense(output_neurons, activation=parameters['output_activation']))
     
     

@@ -33,7 +33,7 @@ def split_data(data, splitting_type = 'instance', instance_testing_size = None, 
     testing_data = None
     gap_data = None
     
-    gap = (forecast_horizon - 1) * granularity # number of temporal units to be removed
+    gap = (forecast_horizon * granularity) - 1 # number of temporal units to be removed
     
     number_of_spatial_units = len(data['spatial id'].unique())
     number_of_temporal_units = len(data['temporal id'].unique())
