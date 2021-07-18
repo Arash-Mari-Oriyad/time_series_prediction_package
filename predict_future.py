@@ -99,11 +99,13 @@ def predict_future(data: pd.DataFrame or str,
     else:
         training_data['sort'] = 'train'
         testing_data['sort'] = 'test'
-        
-        training_data = get_target_temporal_ids(temporal_data = training_data, forecast_horizon = forecast_horizon,
+        all_data = training_data.append(testing_data)
+        all_data = get_target_temporal_ids(temporal_data = all_data, forecast_horizon = forecast_horizon,
                                                granularity = granularity)
-        testing_data = get_target_temporal_ids(temporal_data = testing_data, forecast_horizon = forecast_horizon,
-                                               granularity = granularity)
+        training_data = all_data[all_data['sort'] == 'train']
+        training_data = training_data.drop(['sort'],axis = 1)
+        testing_data = all_data[all_data['sort'] == 'test']
+        testing_data = testing_data.drop(['sort'],axis = 1)
         
 
     training_data = select_features(data=training_data.copy(),

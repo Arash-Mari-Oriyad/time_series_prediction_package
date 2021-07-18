@@ -15,6 +15,7 @@ from get_target_quantities import get_target_quantities
 from get_normal_target import get_normal_target
 from apply_performance_mode import apply_performance_mode
 from get_trivial_values import get_trivial_values
+from get_target_temporal_ids import get_target_temporal_ids
 
 def train_test(
         data, instance_testing_size, 
