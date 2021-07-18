@@ -25,10 +25,12 @@ from apply_performance_mode import apply_performance_mode
 from get_target_quantities import get_target_quantities
 from rank_covariates import rank_covariates
 from rank_features import rank_features
+from get_target_temporal_ids import get_target_temporal_ids
 import warnings
 import multiprocessing
 from keras import backend as K
 
+multiprocessing.set_start_method('spawn', force=True)
 K.clear_session()
 warnings.filterwarnings("once")
 
@@ -293,7 +295,7 @@ def save_prediction_data_frame(models_name_list, target_real_values, fold_valida
 
         prediction_data_frame = prediction_data_frame.append(temp)
     
-    prediction_data_frame = prediction_data_frame.rename(columns = {'temporal id':'predictive time point'})
+    # prediction_data_frame = prediction_data_frame.rename(columns = {'temporal id':'predictive time point'})
     address = './prediction/validation process/'
     if not os.path.exists(address):
         os.makedirs(address)
@@ -343,11 +345,17 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
         raise ValueError("The input data must be a list of DataFrames or strings of data addresses.")
         
     # find the target mode, target granularity, and granularity by decoding target variable column name
+    # and get the target temporal id from temporal id
     granularity = [1]*len(data_list)
     target_granularity = [1]*len(data_list)
     target_mode = ['normal']*len(data_list)
     for i in range(len(data_list)):
         target_mode[i], target_granularity[i], granularity[i], data_list[i] = get_target_quantities(data_list[i])
+        if 'target temporal id' in data_list[i].columns:
+            data_list[i] = data_list[i].rename(columns={'target temporal id':'temporal id'})
+        else:
+            data_list[i] = get_target_temporal_ids(temporal_data = data_list[i], forecast_horizon = forecast_horizon,
+                                                   granularity = granularity[i])
         temp_data = data_list[i].sort_values(by = ['temporal id','spatial id']).copy()
         number_of_spatial_units = len(temp_data['spatial id'].unique())
         if all(temp_data.tail(granularity[i]*forecast_horizon*number_of_spatial_units)['Target'].isna()):
@@ -1364,10 +1372,10 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
         for model_number, model in enumerate(models_list):
             model_name = models_name_list[model_number]
             if model_name in base_models_name_list:
-                best_parameters_number = models_best_parameters_number[model_name][(best_history_length, best_feature_set_number)]              
-                best_parameters = models_parameter_list[model_number][best_parameters_number]
-                if best_parameters is not None:
-                    best_model_base_models.append({model:best_parameters})
+                base_model_best_parameters_number = models_best_parameters_number[model_name][(best_history_length, best_feature_set_number)]              
+                base_model_best_parameters = models_parameter_list[model_number][base_model_best_parameters_number]
+                if base_model_best_parameters is not None:
+                    best_model_base_models.append({model:base_model_best_parameters})
                 else:
                     best_model_base_models.append(model)
     else:

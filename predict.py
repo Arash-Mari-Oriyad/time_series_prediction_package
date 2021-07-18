@@ -11,6 +11,7 @@ from train_validate import train_validate
 from train_test import train_test
 from predict_future import predict_future
 from plot_prediction import plot_prediction
+from get_target_temporal_ids import get_target_temporal_ids
 
 
 def predict(data: list,
@@ -268,8 +269,10 @@ def predict(data: list,
                 
     # get target quantities
     granularity = [1]*len(data)
-    for index, d in enumerate(data):
-        target_mode, target_granularity, granularity[index], _ = get_target_quantities(data=d.copy())
+    for index in range(len(data)):
+        target_mode, target_granularity, granularity[index], _ = get_target_quantities(data=data[index].copy())
+        data[index] = get_target_temporal_ids(temporal_data = data[index].copy(), forecast_horizon = forecast_horizon,
+                                              granularity = granularity[index])
         if model_type == 'classification':
             if not target_mode == 'normal':
                 sys.exit(
@@ -280,9 +283,15 @@ def predict(data: list,
             if not granularity[index] == 1:
                 sys.exit(
                     "Error: The temporal scale of input data must not be transformed according to 'model_type=classification'.")
-
+    
     data, future_data = get_future_data(data=[d.copy() for d in data],
                                         forecast_horizon=forecast_horizon)
+    
+    # change the name of temporal id to be identified as shifted to target time point
+    for index in range(len(data)):
+        data[index] = data[index].rename(columns = {'temporal id':'target temporal id'})
+        future_data[index] = future_data[index].rename(columns = {'temporal id':'target temporal id'})
+    
     # # ranking
     # print('Ranking Process')
     # feature_selection_type = list(feature_sets.keys())[0]
@@ -303,7 +312,7 @@ def predict(data: list,
     # main process
     if test_type == 'whole-as-one':
         print('Whole As One')
-        data_temporal_ids = [d['temporal id'].unique() for d in data]
+        data_temporal_ids = [d['target temporal id'].unique() for d in data]
         # train_validate
         print(100 * '-')
         print('Train Validate Process')
@@ -351,7 +360,7 @@ def predict(data: list,
                                                        verbose=verbose)
         # predict_future
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
-            train_validate(data=[d[d['temporal id'].isin((
+            train_validate(data=[d[d['target temporal id'].isin((
                                 data_temporal_ids[index][:] if (forecast_horizon*granularity[index])-1 == 0 else data_temporal_ids[index][:-((forecast_horizon*granularity[index])-1)]))].copy()
                                 for index, d in enumerate(data)],
                            forecast_horizon=forecast_horizon,
@@ -370,16 +379,16 @@ def predict(data: list,
                            fold_total_number=fold_total_number,
                            performance_benchmark=performance_benchmark,
                            performance_measures=performance_measures,
-                           performance_report=validation_performance_report,
-                           save_predictions=save_predictions,
+                           performance_report=False,#validation_performance_report,
+                           save_predictions=False,#save_predictions,
                            verbose=0)
         
         
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
-        best_data_temporal_ids = best_data['temporal id'].unique()
+        best_data_temporal_ids = best_data['target temporal id'].unique()
         temp = forecast_horizon*granularity[best_history_length - 1] - 1
-        trained_model = predict_future(data=best_data[best_data['temporal id'].isin((best_data_temporal_ids
+        trained_model = predict_future(data=best_data[best_data['target temporal id'].isin((best_data_temporal_ids
                                                                                      if temp == 0
                                                                                      else best_data_temporal_ids[:-temp]
                                                                                      ))].copy(),
@@ -400,7 +409,7 @@ def predict(data: list,
     elif test_type == 'one-by-one':
         print('One By One')
         # loop over test points
-        data_temporal_ids = [d['temporal id'].unique() for d in data]
+        data_temporal_ids = [d['target temporal id'].unique() for d in data]
         if isinstance(instance_testing_size, float):
             instance_testing_size = int(round(instance_testing_size * len(data_temporal_ids[0])))
         for i in range(instance_testing_size):
@@ -411,7 +420,7 @@ def predict(data: list,
             print('Train Validate Process')
             best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
                 train_validate(data=
-                               [d[d['temporal id'].isin((
+                               [d[d['target temporal id'].isin((
                                    data_temporal_ids[index][:] if i == 0 else data_temporal_ids[index][:-i]))].copy()
                                 for index, d in enumerate(data)],
                                forecast_horizon=forecast_horizon,
@@ -439,7 +448,7 @@ def predict(data: list,
             print(100 * '-')
             print('Train Test Process')
             d = data[best_history_length - 1].copy()
-            best_model, best_model_parameters = train_test(data=d[d['temporal id'].isin(
+            best_model, best_model_parameters = train_test(data=d[d['target temporal id'].isin(
                 (data_temporal_ids[best_history_length - 1][:]
                  if i == 0
                  else data_temporal_ids[best_history_length - 1][:-i]
@@ -464,7 +473,7 @@ def predict(data: list,
         print(100 * '-')
         print('Train Validate Process')
         best_model, best_model_parameters, best_history_length, best_feature_or_covariate_set, base_models, _ = \
-            train_validate(data=[d[d['temporal id'].isin((
+            train_validate(data=[d[d['target temporal id'].isin((
                                    data_temporal_ids[index][:] if (forecast_horizon*granularity[index])-1 == 0 else data_temporal_ids[index][:-((forecast_horizon*granularity[index])-1)]))].copy()
                                 for index, d in enumerate(data)],
                            forecast_horizon=forecast_horizon,
@@ -483,25 +492,25 @@ def predict(data: list,
                            fold_total_number=fold_total_number,
                            performance_benchmark=performance_benchmark,
                            performance_measures=performance_measures,
-                           performance_report=validation_performance_report,
-                           save_predictions=save_predictions,
+                           performance_report=False,#validation_performance_report,
+                           save_predictions=False,#save_predictions,
                            verbose=0)
         
             
         best_data = data[best_history_length - 1].copy()
         best_future_data = future_data[best_history_length - 1].copy()
-        best_data_temporal_ids = best_data['temporal id'].unique()
-        best_future_data_temporal_ids = best_future_data['temporal id'].unique()
+        best_data_temporal_ids = best_data['target temporal id'].unique()
+        best_future_data_temporal_ids = best_future_data['target temporal id'].unique()
         for i in range(forecast_horizon*granularity[best_history_length - 1]):
             print(150 * '*')
             print('i =', i + 1)
             temp = forecast_horizon*granularity[best_history_length - 1] - i - 1
             print(100 * '-')
             print('Predict Future Process')
-            trained_model = predict_future(data=best_data[best_data['temporal id'].isin(
+            trained_model = predict_future(data=best_data[best_data['target temporal id'].isin(
                 (best_data_temporal_ids if temp == 0
                  else best_data_temporal_ids[:-temp]))].copy(),
-                                           future_data=best_future_data[best_future_data['temporal id'] ==
+                                           future_data=best_future_data[best_future_data['target temporal id'] ==
                                                                         best_future_data_temporal_ids[i]].copy(),
                                            forecast_horizon=forecast_horizon,
                                            feature_scaler=feature_scaler,

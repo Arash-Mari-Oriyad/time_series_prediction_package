@@ -9,6 +9,7 @@ from get_target_quantities import get_target_quantities
 from scaling import data_scaling, target_descale
 from select_features import select_features
 from train_evaluate import train_evaluate
+from get_target_temporal_ids import get_target_temporal_ids
 
 
 def predict_future(data: pd.DataFrame or str,
@@ -90,6 +91,20 @@ def predict_future(data: pd.DataFrame or str,
 
     target_mode, target_granularity, granularity, training_data = get_target_quantities(data=data.copy())
     _, _, _, testing_data = get_target_quantities(data=future_data.copy())
+    
+    # get the target temporal ids as the temporal id
+    if ('target temporal id' in training_data.columns) and ('target temporal id' in testing_data.columns):
+        training_data = training_data.rename(columns={'target temporal id':'temporal id'})
+        testing_data = testing_data.rename(columns={'target temporal id':'temporal id'})
+    else:
+        training_data['sort'] = 'train'
+        testing_data['sort'] = 'test'
+        
+        training_data = get_target_temporal_ids(temporal_data = training_data, forecast_horizon = forecast_horizon,
+                                               granularity = granularity)
+        testing_data = get_target_temporal_ids(temporal_data = testing_data, forecast_horizon = forecast_horizon,
+                                               granularity = granularity)
+        
 
     training_data = select_features(data=training_data.copy(),
                                     ordered_covariates_or_features=feature_or_covariate_set)
@@ -170,7 +185,6 @@ def predict_future(data: pd.DataFrame or str,
         for index, label in enumerate(labels):
             data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
             
-    data_to_save = data_to_save.rename(columns = {'temporal id':'predictive time point'})
     
     save_predictions_address = \
         f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'

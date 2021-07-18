@@ -47,6 +47,9 @@ def reset_seeds():
 # producing list of parameter values combinations from parameter grid specified by user
 def get_nn_structure(user_params):
     
+    if user_params is None:
+        return user_params
+    
     if 'hidden_layers_structure' in user_params:
         error_msg = 'The value of hidden_layers_structure in NN model parameters must be a list of tuples including number of neurons and activation function of each layer.'
         if not isinstance(user_params['hidden_layers_structure'],list):

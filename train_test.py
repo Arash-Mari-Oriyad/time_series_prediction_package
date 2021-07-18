@@ -155,13 +155,20 @@ def train_test(
 
     # get some information of the data
     target_mode, target_granularity, granularity, data = get_target_quantities(data=data.copy())
-
+    
+    # get the target temporal id from temporal id
+    if 'target temporal id' in data.columns:
+        data = data.rename(columns={'target temporal id':'temporal id'})
+    else:
+        data = get_target_temporal_ids(temporal_data = data.copy(), forecast_horizon = forecast_horizon,
+                                               granularity = granularity)
+    
     # check rows related to future prediction are removed and if not then remove them
     temp_data = data.sort_values(by = ['temporal id','spatial id']).copy()
     number_of_spatial_units = len(temp_data['spatial id'].unique())
     if all(temp_data.tail(granularity*forecast_horizon*number_of_spatial_units)['Target'].isna()):
         data = temp_data.iloc[:-(granularity*forecast_horizon*number_of_spatial_units)]
-
+    
     # check if model is a string or function
     model_name = ''
     if isinstance(model, str) == False:
@@ -342,7 +349,6 @@ def train_test(
             df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
             df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
             df.insert(0, 'model name', model_name, True)
-            df = df.rename(columns={'temporal id':'predictive time point'})
             df.to_csv(pred_file_name, index=False)
         elif model_type == 'classification':
             df = pd.DataFrame()
@@ -353,7 +359,6 @@ def train_test(
             df.insert(0, 'temporal id', test_target_normal['temporal id'].values.tolist(), True)
             df.insert(0, 'spatial id', test_target_normal['spatial id'].values.tolist(), True)
             df.insert(0, 'model name', model_name, True)
-            df = df.rename(columns={'temporal id':'predictive time point'})
             df.to_csv(pred_file_name, index=False)
     
     # saving performance (same approach for both regression and classification)
