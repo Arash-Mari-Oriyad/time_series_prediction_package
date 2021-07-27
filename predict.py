@@ -3,6 +3,7 @@ import shutil
 import sys
 
 import pandas as pd
+import random
 
 import configurations
 from get_future_data import get_future_data
@@ -12,55 +13,60 @@ from train_test import train_test
 from predict_future import predict_future
 from plot_prediction import plot_prediction
 from get_target_temporal_ids import get_target_temporal_ids
+from performance_summary import performance_summary
+from performance_summary import performance_bar_plot
 
 
 def predict(data: list,
             forecast_horizon: int = 1,
-            feature_scaler: str = None,
-            target_scaler: str = None,
-            test_type: str = 'whole-as-one',
             feature_sets: dict = {'covariate': 'mRMR'},
             forced_covariates: list = [],
-            model_type: str = 'regression',
+            test_type: str = 'whole-as-one',
             models: list = ['knn'],
             mixed_models: list = [],
-            instance_testing_size: int or float = 0.2,
+            model_type: str = 'regression',
             splitting_type: str = 'training-validation',
+            instance_testing_size: int or float = 0.2,
             instance_validation_size: int or float = 0.3,
             instance_random_partitioning: bool = False,
             fold_total_number: int = 5,
+            feature_scaler: str = None,
+            target_scaler: str = None,
             performance_benchmark: str = 'MAPE',
-            performance_mode: str = 'normal',
             performance_measures: list = ['MAPE'],
+            performance_mode: str = 'normal',
             scenario: str or None = 'current',
             validation_performance_report: bool = True,
             testing_performance_report: bool = True,
             save_predictions: bool = True,
             plot_predictions: bool = False,
             verbose: int = 0):
+    
     """
     Args:
         data:
         forecast_horizon:
-        feature_scaler:
-        target_scaler:
-        test_type:
         feature_sets:
         forced_covariates:
-        model_type:
+        test_type:
         models:
-        instance_testing_size:
+        mixed_models:
+        model_type:
         splitting_type:
+        instance_testing_size:
         instance_validation_size:
         instance_random_partitioning:
         fold_total_number:
+        feature_scaler:
+        target_scaler:
         performance_benchmark:
-        performance_mode:
         performance_measures:
+        performance_mode:
         scenario:
         validation_performance_report:
         testing_performance_report:
         save_predictions:
+        plot_predictions:
         verbose:
     Returns:
     """
@@ -271,7 +277,7 @@ def predict(data: list,
     granularity = [1]*len(data)
     for index in range(len(data)):
         target_mode, target_granularity, granularity[index], _ = get_target_quantities(data=data[index].copy())
-        data[index] = get_target_temporal_ids(temporal_data = data[index].copy(), forecast_horizon = forecast_horizon,
+        data[index], _ = get_target_temporal_ids(temporal_data = data[index].copy(), forecast_horizon = forecast_horizon,
                                               granularity = granularity[index])
         if model_type == 'classification':
             if not target_mode == 'normal':
@@ -341,7 +347,7 @@ def predict(data: list,
         # train_test
         print(100 * '-')
         print('Train Test Process')
-        best_model, best_model_parameters = train_test(data=data[best_history_length - 1].copy(),
+        test_trained_model = train_test(data=data[best_history_length - 1].copy(),
                                                        forecast_horizon=forecast_horizon,
                                                        history_length=best_history_length,
                                                        feature_scaler=feature_scaler,
@@ -448,7 +454,7 @@ def predict(data: list,
             print(100 * '-')
             print('Train Test Process')
             d = data[best_history_length - 1].copy()
-            best_model, best_model_parameters = train_test(data=d[d['target temporal id'].isin(
+            test_trained_model = train_test(data=d[d['target temporal id'].isin(
                 (data_temporal_ids[best_history_length - 1][:]
                  if i == 0
                  else data_temporal_ids[best_history_length - 1][:-i]
@@ -524,11 +530,21 @@ def predict(data: list,
                                            scenario=scenario,
                                            save_predictions=save_predictions,
                                            verbose=verbose)
+            
+    if (validation_performance_report == True and testing_performance_report == True):
+        performance_bar_plot(forecast_horizon,test_type,performance_benchmark)
+        performance_summary(forecast_horizon,test_type,performance_benchmark)
+        
     if plot_predictions == True:
+        if len(data[0]['spatial id'].unique())<3:
+            spatial_ids = data[0]['spatial id'].unique()
+        else:
+            spatial_ids = list(random.sample(list(data[0]['spatial id'].unique()),3))
         plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
-                         plot_type = 'test', granularity = granularity[0], spatial_ids = None)
+                         plot_type = 'test', granularity = granularity[0], spatial_ids = spatial_ids)
         plot_prediction(data = data[0].copy(), test_type = test_type, forecast_horizon = forecast_horizon,
-                         plot_type = 'future', granularity = granularity[0], spatial_ids = None)
+                         plot_type = 'future', granularity = granularity[0], spatial_ids = spatial_ids)
+
 
     return None
 

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import pathlib
 import re
+import os
 import warnings
 import configurations
 
@@ -26,6 +27,7 @@ def train_test(
         labels=None, performance_measures=['MAPE'], 
         performance_mode='normal', performance_report=True, 
         save_predictions=True, verbose=0):
+    
     
     """
     Parameters:
@@ -158,11 +160,15 @@ def train_test(
     target_mode, target_granularity, granularity, data = get_target_quantities(data=data.copy())
     
     # get the target temporal id from temporal id
+    # if target temporal id is already in the data, call is from inside the predict function
+    # otherwise backup file must be removed
     if 'target temporal id' in data.columns:
         data = data.rename(columns={'target temporal id':'temporal id'})
     else:
-        data = get_target_temporal_ids(temporal_data = data.copy(), forecast_horizon = forecast_horizon,
+        data, _ = get_target_temporal_ids(temporal_data = data.copy(), forecast_horizon = forecast_horizon,
                                                granularity = granularity)
+        if os.path.isfile('test_process_backup.csv'):
+            os.remove('test_process_backup.csv')
     
     # check rows related to future prediction are removed and if not then remove them
     temp_data = data.sort_values(by = ['temporal id','spatial id']).copy()
@@ -221,7 +227,7 @@ def train_test(
     )
 
     # training model with processed data    
-    training_predictions, testing_predictions, _, number_of_parameters = inner_train_evaluate(
+    training_predictions, testing_predictions, trained_model, number_of_parameters = inner_train_evaluate(
         training_data=training_data.copy(), 
         validation_data=testing_data.copy(), 
         model=model, 
@@ -394,4 +400,4 @@ def train_test(
             df[performance_measures[i]] = list([float(test_prediction_errors[i])])
         df.to_csv(performance_file_name, index=False)
     
-    return model, model_parameters
+    return trained_model

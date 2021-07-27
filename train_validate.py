@@ -304,13 +304,12 @@ def save_prediction_data_frame(models_name_list, target_real_values, fold_valida
 ###########################################################################################
     
     
-def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_testing_size = 0,
+def train_validate(data, feature_sets, forced_covariates = [], instance_validation_size = 0.3, instance_testing_size = 0,
                    fold_total_number = 5, instance_random_partitioning = False,
                    forecast_horizon = 1, models = ['knn'], mixed_models = None,  model_type = 'regression', splitting_type = 'training-validation',
-                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', forced_covariates = [],
+                   performance_measures = None, performance_benchmark = None, performance_mode = 'normal', 
                    feature_scaler = None, target_scaler = None, labels = None, performance_report = True,
                    save_predictions = True, verbose = 0):
-    
     
     supported_models_name = ['nn', 'knn', 'glm', 'gbm']
     supported_performance_measures = ['MAE', 'MAPE', 'MASE', 'MSE', 'R2_score', 'AIC', 'BIC', 'likelihood', 'AUC', 'AUPR']
@@ -354,7 +353,7 @@ def train_validate(data, feature_sets, instance_validation_size = 0.3, instance_
         if 'target temporal id' in data_list[i].columns:
             data_list[i] = data_list[i].rename(columns={'target temporal id':'temporal id'})
         else:
-            data_list[i] = get_target_temporal_ids(temporal_data = data_list[i], forecast_horizon = forecast_horizon,
+            data_list[i], _ = get_target_temporal_ids(temporal_data = data_list[i], forecast_horizon = forecast_horizon,
                                                    granularity = granularity[i])
         temp_data = data_list[i].sort_values(by = ['temporal id','spatial id']).copy()
         number_of_spatial_units = len(temp_data['spatial id'].unique())

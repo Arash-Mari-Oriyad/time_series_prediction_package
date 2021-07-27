@@ -151,9 +151,11 @@ def KNN_REGRESSOR(X_train, X_test, y_train, user_params, verbose):
     valid_k_flag = 0
     if user_params is not None:
         if ('n_neighbors' in user_params.keys()):
-            if (user_params['n_neighbors']<len(X_train)):
-                K = user_params['n_neighbors']
-                valid_k_flag = 1
+            if isinstance(user_params['n_neighbors'],int):
+                if (user_params['n_neighbors']<len(X_train)):
+                    K = user_params['n_neighbors']
+                    valid_k_flag = 1
+            else: raise ValueError('The number of neighbors in the knn model parameters must be of type int.')
                 
     if valid_k_flag == 0:
         KNeighborsRegressorObject = KNeighborsRegressor()
@@ -287,9 +289,11 @@ def KNN_CLASSIFIER(X_train, X_test, y_train, user_params, verbose):
     valid_k_flag = 0
     if user_params is not None:
         if ('n_neighbors' in user_params.keys()):
-            if (user_params['n_neighbors']<len(X_train)):
-                K = user_params['n_neighbors']
-                valid_k_flag = 1
+            if isinstance(user_params['n_neighbors'],int):
+                if (user_params['n_neighbors']<len(X_train)):
+                    K = user_params['n_neighbors']
+                    valid_k_flag = 1
+            else: raise ValueError('The number of neighbors in the knn model parameters must be of type int.')
                 
     if valid_k_flag == 0:
         KNeighborsClassifierObject = KNeighborsClassifier()

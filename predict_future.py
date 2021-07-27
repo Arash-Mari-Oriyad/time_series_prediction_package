@@ -15,17 +15,18 @@ from get_target_temporal_ids import get_target_temporal_ids
 def predict_future(data: pd.DataFrame or str,
                    future_data: pd.DataFrame or str,
                    forecast_horizon: int,
-                   feature_scaler: str or None,
-                   target_scaler: str or None,
                    feature_or_covariate_set: list,
-                   model_type: str,
-                   labels: list or None,
-                   model: str or callable,
-                   base_models: list,
-                   model_parameters: dict or None,
-                   scenario: str or None,
-                   save_predictions: bool,
-                   verbose: int):
+                   model: str or callable = 'knn',
+                   base_models: list = [],
+                   model_type: str = 'regression',
+                   model_parameters: dict = None,
+                   feature_scaler: str = None,
+                   target_scaler: str = None,
+                   labels: list = None,
+                   scenario: str or None = 'current',
+                   save_predictions: bool = True,
+                   verbose: int = 0):
+    
     # input checking
     # data input checking
     if not (isinstance(data, pd.DataFrame) or isinstance(data, str)):
@@ -92,21 +93,30 @@ def predict_future(data: pd.DataFrame or str,
     target_mode, target_granularity, granularity, training_data = get_target_quantities(data=data.copy())
     _, _, _, testing_data = get_target_quantities(data=future_data.copy())
     
-    # get the target temporal ids as the temporal id
+    # if target temporal ids is already in the data the call is from inside the predict function, otherwise the temporal 
+    # ids must be shifted to get the target temporal ids, except if temporal id is not integrated and couldnt be shifted
+    # to the target time point thus shift_flag = False.
     if ('target temporal id' in training_data.columns) and ('target temporal id' in testing_data.columns):
         training_data = training_data.rename(columns={'target temporal id':'temporal id'})
         testing_data = testing_data.rename(columns={'target temporal id':'temporal id'})
+        shift_flag = True
     else:
         training_data['sort'] = 'train'
         testing_data['sort'] = 'test'
-        all_data = training_data.append(testing_data)
-        all_data = get_target_temporal_ids(temporal_data = all_data, forecast_horizon = forecast_horizon,
+        all_data = training_data.copy().append(testing_data.copy())
+        all_data, temporal_format = get_target_temporal_ids(temporal_data = all_data, forecast_horizon = forecast_horizon,
                                                granularity = granularity)
-        training_data = all_data[all_data['sort'] == 'train']
+        shift_flag = True if temporal_format == 'integrated' else False
+        if shift_flag == True:
+            training_data = all_data[all_data['sort'] == 'train']
+            testing_data = all_data[all_data['sort'] == 'test']
         training_data = training_data.drop(['sort'],axis = 1)
-        testing_data = all_data[all_data['sort'] == 'test']
         testing_data = testing_data.drop(['sort'],axis = 1)
         
+        # in the case user call the saved files must be removed to prevent overwriting 
+        save_path = f'prediction/future prediction/future prediction forecast horizon = {forecast_horizon}.csv'
+        if save_predictions == True and os.path.isfile(save_path):
+            os.remove(save_path)
 
     training_data = select_features(data=training_data.copy(),
                                     ordered_covariates_or_features=feature_or_covariate_set)
@@ -116,7 +126,7 @@ def predict_future(data: pd.DataFrame or str,
     futuristic_features = [column_name
                            for column_name in training_data.columns.values
                            if len(column_name.split()) > 1 and column_name.split()[1].startswith('t+')]
-
+    
     if scenario:
         for spatial_id in testing_data['spatial id'].tolist():
             for futuristic_feature in futuristic_features:
@@ -186,6 +196,9 @@ def predict_future(data: pd.DataFrame or str,
         converted_normal_testing_predictions = list(zip(*normal_testing_predictions))
         for index, label in enumerate(labels):
             data_to_save.loc[:, f'class {label}'] = list(converted_normal_testing_predictions[index])
+    
+    if shift_flag == False:
+        data_to_save = data_to_save.rename(columns={'temporal id':'predictive time point'})
             
     
     save_predictions_address = \

@@ -128,7 +128,9 @@ def run_model(X_training, X_validation, Y_training, model, model_type, supported
     return train_predictions, validation_predictions, trained_model
 
 
-def train_evaluate(training_data, validation_data, model, model_type, model_parameters=None, labels=None, base_models=None, verbose=0):
+def train_evaluate(training_data, validation_data, model, model_type, model_parameters = None,
+                   labels = None, base_models = None, verbose = 0):
+    
     
     # initializing
     train_predictions = None

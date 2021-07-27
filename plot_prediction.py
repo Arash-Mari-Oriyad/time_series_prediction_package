@@ -24,63 +24,72 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         
     temporal_ids = list(df['temporal id'].unique())
     
-    for spatial_id in spatial_ids:
+    plt.rc('font', size=60)
+    number_of_temporal_ids = len(temporal_ids) + 2
+    fig = plt.figure()
+        
+    for index,spatial_id in enumerate(spatial_ids):
         stage = 'training' if plot_type == 'test' else 'forecast'
         
         if test_point is not None:
-            save_file_name = '{0}spatial id = {1} {2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point+1)
+            save_file_name = '{0}{2} stage for test point #{3}.pdf'.format(save_address, spatial_id, stage, test_point+1)
         else:
-            save_file_name = '{0}spatial id = {1} {2} stage.pdf'.format(save_address, spatial_id, stage)
+            save_file_name = '{0}{2} stage.pdf'.format(save_address, spatial_id, stage)
         
-        plt.rc('font', size=60)
-        number_of_temporal_ids = len(temporal_ids) + 2
-        fig, ax = plt.subplots()
         
+        ax=fig.add_subplot(len(spatial_ids),1, index+1)
         # add the curve of real values of the target variable
         temp_df = df[df['spatial id'] == spatial_id]
-        plt.plot(list(temp_df['temporal id']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0)
+        ax.plot(list(temp_df['temporal id']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0)
         
         # add the curve of predicted values of the target variable in the training, validation and testing set
         if plot_type != 'future':
             temp_train_df = temp_df[temp_df['sort'] == 'train']
-            plt.plot(list(temp_train_df['temporal id']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_train_df['temporal id']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0)
             temp_val_df = temp_df[temp_df['sort'] == 'validation']
-            plt.plot(list(temp_val_df['temporal id']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_val_df['temporal id']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0)
             temp_test_df = temp_df[temp_df['sort'] == 'test']
-            plt.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0)
 
         if plot_type == 'future':
             temp_test_df = temp_df[temp_df['sort'] == 'future']
-            plt.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0)
-        
-        plt.ylabel('Target')
-        plt.xlabel(x_axis_label,labelpad = 20)
-        plt.legend()
-        plt.xticks(rotation=90)
-        plt.grid()
-        
-        # set the size of plot base on number of temporal units and lable fonts
-        plt.gca().margins(x=0.002)
-        plt.gcf().canvas.draw()
-        tl = plt.gca().get_xticklabels()
-        maxsize = max([t.get_window_extent().width for t in tl])
-        inch_margin = 0.5 # inch margin
-        xtick_size = maxsize/plt.gcf().dpi*number_of_temporal_ids+inch_margin
-        margin = inch_margin/plt.gcf().get_size_inches()[0]
+            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0)
 
-        plt.gcf().subplots_adjust(left=margin, right=1.-margin)
-        plt.gcf().set_size_inches(xtick_size, plt.gcf().get_size_inches()[1]*5)
+        ax.grid()
+        plt.ylabel('Target')
+        if index<len(spatial_ids)-1:
+          ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+        if index == 0:
+          plt.legend()
+        ttl = plt.title('spatial id '+str(spatial_id))
+        ttl.set_position([.5, 1.05])
         
-        plt.tight_layout()
-        plt.margins(x = 0.01)
-        
-        try:
-            if not os.path.exists(save_address):
-                os.makedirs(save_address)
-            plt.savefig(save_file_name, bbox_inches='tight')
-            plt.close()
-        except FileNotFoundError:
-                print("The address '{0}' is not valid.".format(save_address))
+    
+    plt.xlabel(x_axis_label,labelpad = 20)
+    plt.xticks(rotation=90)
+    
+    # set the size of plot base on number of temporal units and lable fonts
+    plt.gca().margins(x=0.002)
+    plt.gcf().canvas.draw()
+    tl = plt.gca().get_xticklabels()
+    maxsize = max([t.get_window_extent().width for t in tl])
+    inch_margin = 0.5 # inch margin
+    xtick_size = maxsize/plt.gcf().dpi*number_of_temporal_ids+inch_margin
+    margin = inch_margin/plt.gcf().get_size_inches()[0]
+
+    plt.gcf().subplots_adjust(left=margin, right=1.-margin)
+    plt.gcf().set_size_inches(xtick_size, plt.gcf().get_size_inches()[1]*5*(len(spatial_ids)))
+    plt.subplots_adjust(hspace=.5)
+    plt.tight_layout()
+    plt.margins(x = 0.01)
+    
+    try:
+        if not os.path.exists(save_address):
+            os.makedirs(save_address)
+        plt.savefig(save_file_name, bbox_inches='tight', pad_inches=1)
+        plt.close()
+    except FileNotFoundError:
+            print("The address '{0}' is not valid.".format(save_address))
                 
 def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot_type = 'test', granularity = 1,
                         spatial_ids = None):
@@ -134,7 +143,7 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
             all_df = train_df[needed_columns].append(future_df[needed_columns])
         
         try:
-            create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = None, 
+            create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = spatial_ids, 
                         save_address = './plots/', plot_type = plot_type, test_point = None)
         except Exception as e:
             raise Exception('There is a problem in plotting predictions:\n'+str(e))
@@ -166,7 +175,7 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
                 all_df = train_df[needed_columns].append(validation_df[needed_columns]).append(gap_df[needed_columns]).append(test_df[needed_columns])
 
                 try:
-                    create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = None, 
+                    create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = spatial_ids, 
                                 save_address = './plots/', plot_type = plot_type, test_point = test_point)
                 except Exception as e:
                     raise Exception('There is a problem in plotting predictions:\n'+str(e))
@@ -181,7 +190,7 @@ def plot_prediction(data, test_type = 'whole-as-one', forecast_horizon = 1, plot
             all_df = train_df[needed_columns].append(future_df[needed_columns])
         
             try:
-                create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = None, 
+                create_plot(df = all_df, forecast_horizon = forecast_horizon, granularity = granularity, spatial_ids = spatial_ids, 
                             save_address = './plots/', plot_type = plot_type, test_point = None)
             except Exception as e:
                 raise Exception('There is a problem in plotting predictions:\n'+str(e))

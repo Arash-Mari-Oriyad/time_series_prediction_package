@@ -101,4 +101,4 @@ def get_target_temporal_ids(temporal_data, forecast_horizon, granularity):
         temporal_data['temporal id'] = temporal_data['future temporal id']
         temporal_data = temporal_data.drop(['future temporal id'],axis = 1)
     
-    return temporal_data
+    return temporal_data, temporal_format

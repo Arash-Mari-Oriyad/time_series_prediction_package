@@ -520,8 +520,8 @@ def prepare_data(data, column_identifier):
         data_extra_columns = list(set(data.columns)-set(spatial_columns+temporal_columns))
 
         if len(data_extra_columns) > 0:
-            print("\nWarning: Input data column names must match one of the formats:\n{'temporal id', 'temporal id level x', 'spatial id', 'spatial id level x', 'temporal covariate x', 'spatial covariate x', 'target'}, or must be specified in column_identifier")
-            print("or be specified in the column_identifier,but the names of some of the columns do not match any of the supported formats and are not mentioned in the column_identifier:\n{0}\nThese columns will be ignored.\n".format(data_extra_columns))
+            print("\nWarning: Input data column names must match one of the formats:\n{'temporal id', 'temporal id level x', 'spatial id', 'spatial id level x', 'temporal covariate x', 'spatial covariate x', 'target'},")
+            print("or be specified in the column_identifier, but the names of some of the columns do not match any of the supported formats and are not mentioned in the column_identifier:\n{0}\nThese columns will be ignored.\n".format(data_extra_columns))
 
 
     elif type(data) == dict:
@@ -1260,7 +1260,7 @@ def make_historical_data(data, forecast_horizon, history_length = 1, column_iden
     extra_columns = list(set(all_covariates)-set(spatial_covariates + temporal_covariates))
     
     if len(extra_columns) > 0 :
-        print("\nWarning: Input data column names must match one of the specified formats:\n{'temporal id', 'temporal id level x', 'spatial id', 'spatial id level x', 'temporal covariate x', 'spatial covariate x', 'target'}, or must be specified in column_identifier.\n")
+        print("\nWarning: Input data column names must match one of the specified formats:\n{'temporal id', 'temporal id level x', 'spatial id', 'spatial id level x', 'temporal covariate x', 'spatial covariate x', 'target'}, or be specified in column_identifier.\n")
         print("But the names of some of the columns do not match any of the supported formats and is not mentioned in column_identifier:\n{0}\nThis columns will be ignored.\n".format(extra_columns))
     
     ######################## check type of future_data_table
