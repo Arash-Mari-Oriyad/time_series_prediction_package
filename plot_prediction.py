@@ -40,20 +40,20 @@ def create_plot(df, forecast_horizon, granularity, spatial_ids, save_address, pl
         ax=fig.add_subplot(len(spatial_ids),1, index+1)
         # add the curve of real values of the target variable
         temp_df = df[df['spatial id'] == spatial_id]
-        ax.plot(list(temp_df['temporal id']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0)
+        ax.plot(list(temp_df['temporal id']),list(temp_df['real']),label='Real values', marker = 'o', markersize=20, linewidth=3.0, color = 'navy')
         
         # add the curve of predicted values of the target variable in the training, validation and testing set
         if plot_type != 'future':
             temp_train_df = temp_df[temp_df['sort'] == 'train']
-            ax.plot(list(temp_train_df['temporal id']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_train_df['temporal id']),list(temp_train_df['prediction']),label='Training set predicted values', marker = 'o', markersize=20, linewidth=3.0, color = 'green')
             temp_val_df = temp_df[temp_df['sort'] == 'validation']
-            ax.plot(list(temp_val_df['temporal id']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_val_df['temporal id']),list(temp_val_df['prediction']),label='validation set predicted values', marker = 'o', markersize=20, linewidth=3.0, color = 'orange')
             temp_test_df = temp_df[temp_df['sort'] == 'test']
-            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Testing set predicted values', marker = 'o', markersize=20, linewidth=3.0, color = 'crimson')
 
         if plot_type == 'future':
             temp_test_df = temp_df[temp_df['sort'] == 'future']
-            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0)
+            ax.plot(list(temp_test_df['temporal id']),list(temp_test_df['prediction']),label='Predicted values', marker = 'o', markersize=20, linewidth=3.0, color = 'orangered')
 
         ax.grid()
         plt.ylabel('Target')
