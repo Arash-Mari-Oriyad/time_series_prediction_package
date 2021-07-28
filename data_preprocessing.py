@@ -596,6 +596,8 @@ def impute(data, column_identifier = None, verbose = 0):
     
     if type(data) == str:
         data = pd.read_csv(data)
+    elif type(data) != pd.DataFrame:
+        raise ValueError('Input data must be a data frame or data address.')
     
     data = rename_columns(data.copy(), column_identifier)
         
@@ -691,6 +693,8 @@ def spatial_scale_transform(data, data_type, spatial_scale_table = None, spatial
     
     if type(data) == str:
         data = pd.read_csv(data)
+    elif type(data) != pd.DataFrame:
+        raise ValueError('Input data must be a data frame or data address.')
     data = rename_columns(data.copy(), column_identifier)
     
     check_validity(data.copy(), input_name = 'data', data_type = data_type, column_identifier = column_identifier)
@@ -803,6 +807,9 @@ def temporal_scale_transform(data, column_identifier = None, temporal_scale_leve
     
     if type(data) == str:
         data = pd.read_csv(data)
+    elif type(data) != pd.DataFrame:
+        raise ValueError('Input data must be a data frame or data address.')
+    
     data = rename_columns(data.copy(), column_identifier)
     check_validity(data.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
     
@@ -999,6 +1006,8 @@ def target_modification(data, target_mode, column_identifier = None, verbose = 0
     
     if type(data) == str:
         data = pd.read_csv(data)
+    elif type(data) != pd.DataFrame:
+        raise ValueError('Input data must be a data frame or data address.')
     data = rename_columns(data.copy(), column_identifier)
     
     check_validity(data.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
@@ -1507,7 +1516,7 @@ def data_preprocess(data, forecast_horizon, history_length = 1, column_identifie
     target_granularity = None
     
     # prepare data (renaming columns, remove extra columns and get spatial and temporal data separately)
-    temporal_data, spatial_data = prepare_data(data.copy(), column_identifier)
+    temporal_data, spatial_data = prepare_data(data, column_identifier)
     
     
     #################### get list of covariates
@@ -1889,7 +1898,7 @@ def plot_data(data, spatial_scale_table, temporal_covariate = 'default' ,spatial
             raise FileNotFoundError("File '{0}' does not exist.\n".format(data))
             
     elif type(data) != pd.DataFrame:
-        raise TypeError("The input data must be of type DataFrame or string.")
+        raise TypeError("Input data must be a data frame or data address.")
     
     df = rename_columns(data, column_identifier)
     check_validity(df.copy(), input_name = 'data', data_type = 'temporal', column_identifier = column_identifier)
